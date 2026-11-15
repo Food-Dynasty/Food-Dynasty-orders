@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!--
+  FOOD DYNASTY ORDERS: staff app for taking orders in the store and over the phone.
+
+  This is a "single-page app": there's only ONE HTML page. JavaScript (js/app.js)
+  swaps what's shown inside <main id="view"> depending on the address after the #:
+    #/orders           today's / upcoming orders (home screen)
+    #/new              take a new order
+    #/order/12         one order's details
+    #/customers        customer list and search
+    #/customer/<id>    one customer, with their order history
+    #/login            staff sign-in (only when connected to the cloud database)
+-->
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Food Dynasty Orders</title>
+
+  <!-- Staff-only tool: keep it out of Google -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- "Add to Home Screen" support: name, icon and colors for the installed app -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#111111">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="FD Orders">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+
+  <!-- Scripts run in this order (defer keeps the order and waits for the page):
+       1. Supabase library  2. settings  3. catering menu  4. data layer  5. the app -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" defer></script>
+  <script src="js/config.js" defer></script>
+  <script src="js/catering-menu.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+
+<body>
+
+  <header class="app-header">
+    <a class="app-title" href="#/orders">
+      <span class="crown" aria-hidden="true">♛</span> FD Orders
+    </a>
+    <div class="app-header-right">
+      <span class="who" id="who"></span>
+      <button type="button" class="link-btn" id="sign-out" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <div class="demo-banner" id="demo-banner" hidden>
+    <strong>DEMO MODE:</strong> orders are saved on this device only.
+  </div>
+
+  <!-- Every screen is drawn in here by js/app.js -->
+  <main class="view" id="view" tabindex="-1">
+    <p class="loading">Loading…</p>
+    <noscript><p>This app needs JavaScript turned on.</p></noscript>
+  </main>
+
+  <!-- Bottom tab bar, like a phone app -->
+  <nav class="tabbar" id="tabbar" aria-label="App sections">
+    <a href="#/orders" data-tab="orders"><span aria-hidden="true">📋</span>Orders</a>
+    <a href="#/new" data-tab="new" class="tab-new"><span aria-hidden="true">＋</span>New order</a>
+    <a href="#/customers" data-tab="customers"><span aria-hidden="true">👥</span>Customers</a>
+  </nav>
+
+  <!-- Small pop-up message ("Order saved") -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+</body>
+</html>

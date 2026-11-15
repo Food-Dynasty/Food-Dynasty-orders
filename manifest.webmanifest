@@ -1,0 +1,14 @@
+{
+  "name": "Food Dynasty Orders",
+  "short_name": "FD Orders",
+  "description": "Staff app for taking delivery and catering orders at Food Dynasty Supermarket.",
+  "start_url": "./#/orders",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f3f1",
+  "theme_color": "#111111",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

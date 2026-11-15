@@ -1,0 +1,634 @@
+/*
+  FOOD DYNASTY ORDERS: STYLES
+  Built for phones first: big tap targets (at least 44px tall), one column,
+  and a tab bar at the bottom where thumbs can reach it.
+*/
+
+:root {
+  --yellow: #ffd100;
+  --yellow-dark: #e6bc00;
+  --black: #111111;
+  --gray: #f3f3f1;
+  --line: #e2e2e2;
+  --text: #1d1d1d;
+  --muted: #666666;
+  --red: #b00020;
+  --green: #2e7d32;
+  --blue: #1565c0;
+  --tabbar-height: 64px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font-family: "Poppins", Arial, sans-serif;
+  color: var(--text);
+  background: var(--gray);
+  line-height: 1.45;
+  /* room so the bottom tab bar never covers content */
+  padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 16px);
+}
+
+a {
+  color: var(--black);
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 10px;
+}
+
+small,
+.muted {
+  color: var(--muted);
+}
+
+/* ---------- Header ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--black);
+  color: white;
+  padding: 10px 16px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+.app-title {
+  color: white;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.crown {
+  color: var(--yellow);
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+
+.who {
+  color: #bbbbbb;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-header .link-btn {
+  color: var(--yellow);
+}
+
+.demo-banner {
+  background: #fff3cd;
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+
+/* ---------- Main area ---------- */
+.view {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+  outline: none;
+}
+
+.screen-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 32px 0;
+}
+
+.back {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.panel {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.panel p {
+  margin: 6px 0;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--yellow);
+  font-size: 0.9rem;
+  margin-right: 4px;
+}
+
+.error {
+  background: #fdecea;
+  color: var(--red);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: -4px 0 0;
+}
+
+/* ---------- Forms ---------- */
+label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+input,
+select,
+textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font: inherit;
+  font-size: 1rem;   /* 16px+ stops iPhones from zooming in when you tap a field */
+  padding: 10px 12px;
+  min-height: 44px;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* .stack = space out every field in a form evenly */
+.stack > * + * {
+  margin-top: 12px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 700;
+  border: 1px solid #c9c9c9;
+  border-radius: 10px;
+  background: white;
+  color: var(--black);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.btn-primary:active {
+  background: var(--yellow-dark);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-small {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-row .btn {
+  flex: 1 1 auto;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--black);
+}
+
+.link-btn.danger {
+  color: var(--red);
+}
+
+.actions {
+  margin-top: 6px;
+}
+
+.actions > .link-btn {
+  display: block;
+  margin: 14px auto 0;
+}
+
+/* Big two-way choices: Grocery / Catering, Delivery / Pickup */
+.choice-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.choice {
+  min-height: 56px;
+  font: inherit;
+  font-weight: 700;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+}
+
+.choice.selected {
+  border-color: var(--black);
+  background: #fffbe6;
+}
+
+/* ---------- Orders list ---------- */
+.segmented {
+  display: flex;
+  background: white;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.segmented a {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 8px 4px;
+  border-radius: 8px;
+}
+
+.segmented a.active {
+  background: var(--black);
+  color: white;
+}
+
+.card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card-list li {
+  margin-bottom: 10px;
+}
+
+.card {
+  display: block;
+  background: white;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.order-card.done {
+  opacity: 0.55;
+}
+
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-name {
+  font-weight: 600;
+}
+
+.order-no {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.badge,
+.status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--gray);
+}
+
+.badge-catering {
+  background: #fde7c7;
+}
+
+.badge-grocery {
+  background: #dcefdc;
+}
+
+/* Status colors: easy to scan from across the counter */
+.status-new { background: var(--yellow); }
+.status-preparing { background: #ffe0b2; }
+.status-ready,
+.status-out_for_delivery { background: #bbdefb; color: #0d47a1; }
+.status-completed { background: #c8e6c9; color: #1b5e20; }
+.status-cancelled { background: #eeeeee; color: #777777; text-decoration: line-through; }
+
+.reorder-btn {
+  margin-top: 6px;
+}
+
+/* ---------- Order details ---------- */
+.big-when {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.items-text {
+  white-space: pre-wrap;   /* keep the line breaks staff typed */
+  margin: 0;
+}
+
+.line-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.line-list > li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.line-list > li:last-child {
+  border-bottom: none;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+}
+
+.total-row.grand {
+  font-weight: 800;
+  font-size: 1.1rem;
+  border-top: 2px solid var(--black);
+  padding-top: 6px;
+}
+
+/* ---------- New order: customer picking ---------- */
+.chosen {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pick-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.pick-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+}
+
+.new-customer {
+  margin-top: 12px;
+}
+
+.new-customer summary {
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+/* ---------- New order: catering picker ---------- */
+.picker {
+  display: grid;
+  gap: 10px;
+  background: var(--gray);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.line-list.editable > li {
+  display: block;
+}
+
+.line-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.line-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.line-controls .link-btn {
+  margin-left: auto;
+}
+
+.qty {
+  width: 44px;
+  height: 44px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 1.2rem;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  background: var(--gray);
+  cursor: pointer;
+}
+
+.qty-input {
+  width: 70px;
+  text-align: center;
+  margin: 0;
+}
+
+.line-note {
+  font-size: 0.9rem;
+  min-height: 38px;
+  padding: 6px 10px;
+}
+
+.totals {
+  background: var(--gray);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.login {
+  max-width: 400px;
+  margin: 40px auto;
+}
+
+/* ---------- Bottom tab bar ---------- */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  background: white;
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);   /* stays above the iPhone home bar */
+}
+
+.tabbar a {
+  flex: 1;
+  height: var(--tabbar-height);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.tabbar a span {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.tabbar a.active {
+  color: var(--black);
+}
+
+.tabbar .tab-new span {
+  background: var(--yellow);
+  color: var(--black);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+/* ---------- Toast (small pop-up message) ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 12px);
+  transform: translateX(-50%);   /* centers it */
+  z-index: 20;
+  background: var(--black);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+
+/* ---------- Printing: only the order (for the kitchen or driver) ---------- */
+@media print {
+  .app-header, .demo-banner, .tabbar, .toast, .no-print, .back {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    padding: 0;
+  }
+
+  .panel {
+    box-shadow: none;
+    border: 1px solid #999999;
+    break-inside: avoid;
+  }
+}
