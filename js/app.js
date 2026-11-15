@@ -123,7 +123,8 @@ function nextStatus(order) {
 }
 
 function badges(order) {
-  return '<span class="badge badge-' + order.kind + '">' + (order.kind === "catering" ? "Catering" : "Grocery") + "</span>" +
+  return (order.source === "online" ? '<span class="badge badge-online">🌐 Online</span>' : "") +
+         '<span class="badge badge-' + order.kind + '">' + (order.kind === "catering" ? "Catering" : "Grocery") + "</span>" +
          '<span class="badge">' + (order.fulfillment === "delivery" ? "Delivery" : "Pickup") + "</span>" +
          '<span class="status status-' + order.status + '">' + STATUS_LABEL[order.status] + "</span>" +
          (order.status !== "cancelled" && amountOwed(order) > 0 ? '<span class="badge badge-unpaid">Unpaid</span>' : "");
@@ -320,6 +321,9 @@ async function showOrder(id) {
     (o.kind === "catering" ? customerCopyHTML(o, balance) : "") +
 
     // Action buttons (not printed)
+    // ONLINE ORDERS: reminder to call, plus a price check against the real menu
+    (o.source === "online" ? onlinePanelHTML(o) : "") +
+
     // PAYMENT: change it any time, e.g. a "Not paid yet" order paid at the door
     (o.status !== "cancelled" ? paymentPanelHTML(o) : "") +
 
@@ -366,6 +370,41 @@ async function showOrder(id) {
 
 function row(label, value, extraClass) {
   return '<p class="total-row ' + (extraClass || "") + '"><span>' + label + "</span><span>" + value + "</span></p>";
+}
+
+/* ---------- Online orders (sent from the website) ---------- */
+
+// The website calculates its own prices in the customer's browser, which someone
+// could tamper with. So for every online catering line we recalculate the price
+// from OUR menu file and list anything that doesn't match.
+function priceProblems(order) {
+  const problems = [];
+  (order.items || []).forEach(function (line) {
+    const item = MENU_ITEMS[line.id];
+    if (!item) {
+      problems.push(line.name + ": not on our current menu");
+      return;
+    }
+    const expected = roundCents(cateringUnitPrice(line) * Number(line.qty));
+    if (Math.abs(expected - Number(line.line_total)) > 0.01) {
+      problems.push(line.name + ": website said " + money(line.line_total) + ", menu price is " + money(expected));
+    }
+  });
+  return problems;
+}
+
+function onlinePanelHTML(o) {
+  const problems = o.kind === "catering" ? priceProblems(o) : [];
+  return (
+    '<div class="panel online-panel no-print">' +
+      "<h2>🌐 Sent from the website</h2>" +
+      "<p>Call the customer to confirm the order and take the deposit, then mark it as Preparing.</p>" +
+      (problems.length
+        ? '<div class="error"><strong>⚠ Price check failed. Confirm the total by phone:</strong><ul>' +
+            problems.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul></div>"
+        : '<p class="pay-state paid">✓ Prices match the menu</p>') +
+    "</div>"
+  );
 }
 
 /* ---------- Payment ---------- */

@@ -1,4 +1,4 @@
-﻿/*
+/*
   APP SETTINGS
   ------------
   SUPABASE_URL and SUPABASE_ANON_KEY come from your Supabase project:
