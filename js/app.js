@@ -110,10 +110,13 @@ const STATUS_LABEL = {
   cancelled: "Cancelled"
 };
 
-// The next step for the big "status" button
+// The next step for the big "status" button.
+// Deliveries go straight from Preparing to Completed (no "out for delivery" step).
+// Pickups get a "Ready for pickup" step so the counter knows it's waiting.
+// ("out_for_delivery" stays in STATUS_LABEL so older orders still display correctly.)
 function nextStatus(order) {
   const flow = order.fulfillment === "delivery"
-    ? ["new", "preparing", "out_for_delivery", "completed"]
+    ? ["new", "preparing", "completed"]
     : ["new", "preparing", "ready", "completed"];
   const i = flow.indexOf(order.status);
   return (i >= 0 && i < flow.length - 1) ? flow[i + 1] : null;
@@ -261,12 +264,18 @@ async function showOrder(id) {
   const next = nextStatus(o);
   const balance = roundCents(Number(o.total) - Number(o.deposit_paid || 0));
 
+  // Grocery orders: the shopping list as a tap-to-check list.
+  // Older orders saved before the checklist existed only have items_text, so build it from that.
+  const checklist = o.kind === "grocery"
+    ? (Array.isArray(o.items) ? o.items : groceryChecklist(o.items_text))
+    : null;
+
   const itemsHTML = o.kind === "catering"
     ? "<ul class=\"line-list\">" + (o.items || []).map(function (line) {
         return "<li><span>" + esc(line.label || line.name) + (line.note ? '<br><small>Note: ' + esc(line.note) + "</small>" : "") +
                "</span><span>" + money(line.line_total) + "</span></li>";
       }).join("") + "</ul>"
-    : '<p class="items-text">' + esc(o.items_text) + "</p>";
+    : checklistHTML(checklist);
 
   view.innerHTML =
     '<p><a href="#/orders" class="back">‹ Orders</a></p>' +
@@ -325,6 +334,7 @@ async function showOrder(id) {
       }
       if (action === "print") printCopy(button.dataset.copy);
       if (action === "reorder") startReorder(o);
+      if (action === "pick") await togglePicked(o, checklist, Number(button.dataset.index), button);
     } catch (error) {
       showError(error);
     }
@@ -333,6 +343,72 @@ async function showOrder(id) {
 
 function row(label, value, extraClass) {
   return '<p class="total-row ' + (extraClass || "") + '"><span>' + label + "</span><span>" + value + "</span></p>";
+}
+
+/* ---------- Grocery checklist ("in the basket") ---------- */
+
+// Typed list -> checklist. One line = one item. Empty lines are skipped, and bullet
+// characters people often type at the start ("-", "*", "•", "1.") are removed.
+function groceryChecklist(text) {
+  return String(text || "")
+    .split("\n")
+    .map(function (line) { return line.replace(/^\s*([-*•]|\d+[.)])\s*/, "").trim(); })
+    .filter(function (line) { return line !== ""; })
+    .map(function (line) { return { text: line, picked: false }; });
+}
+
+function checklistProgress(list) {
+  const done = list.filter(function (item) { return item.picked; }).length;
+  return done + " of " + list.length + " in basket" + (done === list.length && list.length ? " ✅" : "");
+}
+
+function checklistHTML(list) {
+  if (!list.length) return '<p class="muted">No items listed.</p>';
+  return (
+    '<p class="pick-progress" id="pick-progress">' + checklistProgress(list) + "</p>" +
+    '<ul class="checklist">' +
+      list.map(function (item, i) {
+        // A <button> (not a checkbox) so the WHOLE row is a big target for thumbs.
+        // aria-pressed tells screen readers whether it's checked.
+        return '<li><button type="button" class="check-item' + (item.picked ? " picked" : "") +
+               '" data-action="pick" data-index="' + i + '" aria-pressed="' + item.picked + '">' +
+               '<span class="box" aria-hidden="true">' + (item.picked ? "✓" : "") + "</span>" +
+               '<span class="check-text">' + esc(item.text) + "</span></button></li>";
+      }).join("") +
+    "</ul>"
+  );
+}
+
+// Tapping an item: update the screen right away, then save to the database.
+// (Updating first and saving after is called an "optimistic update": the app feels
+// instant. If saving fails, we undo the change on screen and show the error.)
+async function togglePicked(order, list, index, button) {
+  const item = list[index];
+  item.picked = !item.picked;
+  button.classList.toggle("picked", item.picked);
+  button.setAttribute("aria-pressed", item.picked);
+  button.querySelector(".box").textContent = item.picked ? "✓" : "";
+  document.getElementById("pick-progress").textContent = checklistProgress(list);
+
+  const changes = { items: list };
+  // First item in the basket: the order is clearly being worked on
+  if (item.picked && order.status === "new") changes.status = "preparing";
+
+  try {
+    await Store.updateOrder(order.id, changes);
+    if (changes.status) {
+      order.status = changes.status;
+      toast("Order #" + order.id + ": Preparing");
+      route();   // redraw so the status badge and button update
+    }
+  } catch (error) {
+    item.picked = !item.picked;   // undo
+    button.classList.toggle("picked", item.picked);
+    button.setAttribute("aria-pressed", item.picked);
+    button.querySelector(".box").textContent = item.picked ? "✓" : "";
+    document.getElementById("pick-progress").textContent = checklistProgress(list);
+    throw error;
+  }
 }
 
 // PRINTING TWO DIFFERENT COPIES FROM ONE PAGE
@@ -496,12 +572,16 @@ function showNewOrder() {
             choiceButton("kind", "grocery", "🛒 Grocery (phone order)", draft.kind) +
             choiceButton("kind", "catering", "🍝 Catering", draft.kind) +
           "</div>" +
-          (draft.kind
+          // Catering can be pickup or delivery. Phone grocery orders are always
+          // delivery (free over the $50 minimum), so there's no choice to make.
+          (draft.kind === "catering"
             ? '<div class="choice-row">' +
                 choiceButton("fulfillment", "delivery", "🚚 Delivery", draft.fulfillment) +
                 choiceButton("fulfillment", "pickup", "🏪 Pickup", draft.fulfillment) +
               "</div>"
-            : "") +
+            : (draft.kind === "grocery"
+                ? '<p class="hint">🚚 Phone grocery orders are delivered free (minimum ' + money(GROCERY_DELIVERY_MINIMUM) + ").</p>"
+                : "")) +
         "</section>"
       : "") +
 
@@ -600,8 +680,7 @@ function detailsHTML() {
         '<label>Items <small>(one per line)</small>' +
           '<textarea name="itemsText" rows="6" placeholder="2 gal whole milk&#10;5 lb chicken thighs&#10;1 dozen eggs">' + esc(draft.itemsText) + "</textarea></label>" +
         '<label>Register total (incl. tax)' +
-          '<input name="registerTotal" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(draft.registerTotal) + '" placeholder="0.00"></label>' +
-        (isDelivery ? '<p class="hint">Phone deliveries need at least ' + money(GROCERY_DELIVERY_MINIMUM) + ".</p>" : "")) +
+          '<input name="registerTotal" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(draft.registerTotal) + '" placeholder="0.00"></label>') +
 
       (isDelivery
         ? '<label>Delivery address<input name="deliveryAddress" value="' + esc(draft.deliveryAddress) + '" autocomplete="off"></label>'
@@ -731,6 +810,8 @@ async function handleNewOrderClick(event) {
   }
   if (action === "choose") {
     draft[target.dataset.field] = target.dataset.value;
+    // Grocery orders are always deliveries
+    if (draft.kind === "grocery") draft.fulfillment = "delivery";
     showNewOrder();
   }
   if (action === "add-line") {
@@ -846,7 +927,7 @@ async function saveOrder() {
         qty: line.qty, unit_price: unitPrice, line_total: roundCents(unitPrice * line.qty),
         label: cateringLineLabel(line), note: line.note
       };
-    }) : null,
+    }) : groceryChecklist(draft.itemsText),   // grocery: [{ text, picked }] for the in-basket checklist
     items_text: isCatering ? null : draft.itemsText.trim(),
     subtotal: t.subtotal,
     delivery_fee: t.fee,

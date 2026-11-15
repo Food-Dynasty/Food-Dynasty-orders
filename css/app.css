@@ -447,6 +447,64 @@ textarea {
   padding-top: 6px;
 }
 
+/* ---------- Grocery checklist ("in the basket") ---------- */
+.pick-progress {
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;          /* big enough to tap with a thumb while holding a basket */
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  font: inherit;
+  font-size: 1.05rem;
+  text-align: left;
+  background: white;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.check-item .box {
+  flex: 0 0 28px;            /* fixed 28px wide, never shrinks */
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #999999;
+  border-radius: 6px;
+  font-weight: 800;
+  color: white;
+}
+
+/* Checked: green box, item crossed out and faded */
+.check-item.picked {
+  background: #f1f8f1;
+  border-color: #c8e6c9;
+}
+
+.check-item.picked .box {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.check-item.picked .check-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
 /* ---------- New order: customer picking ---------- */
 .chosen {
   display: flex;

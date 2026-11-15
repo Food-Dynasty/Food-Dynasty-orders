@@ -1,4 +1,4 @@
-/*
+﻿/*
   APP SETTINGS
   ------------
   SUPABASE_URL and SUPABASE_ANON_KEY come from your Supabase project:
@@ -19,4 +19,4 @@ const SUPABASE_ANON_KEY = "sb_publishable_Obe832C66r7F-T-cmZxs7Q_XSJQw9EI";
 const TAX_RATE = 0.08875;            // NYC sales tax on catering (8.875%)
 const CATERING_DELIVERY_FEE = 15;    // flat catering delivery fee, taxed with the order
 const GROCERY_DELIVERY_MINIMUM = 50; // phone grocery deliveries need at least $50
-const GROCERY_DELIVERY_FEE = 0;      // TODO: ask the store if grocery delivery has a fee
+const GROCERY_DELIVERY_FEE = 0;      // phone grocery orders: always delivery, free over the minimum
