@@ -615,7 +615,110 @@ textarea {
   text-align: center;
 }
 
-/* ---------- Printing: only the order (for the kitchen or driver) ---------- */
+/* ---------- Customer copy (catering): never shown on screen ---------- */
+.customer-copy {
+  display: none;
+}
+
+.cc-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 3px solid var(--black);
+  padding-bottom: 12px;
+}
+
+.cc-logo {
+  width: 150px;
+  height: auto;
+  border-radius: 6px;
+}
+
+.cc-store {
+  font-size: 10.5pt;
+  line-height: 1.5;
+}
+
+.cc-title {
+  font-size: 18pt;
+  margin: 16px 0 0;
+}
+
+.cc-meta {
+  color: #444444;
+  margin: 2px 0 14px;
+}
+
+.cc-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.cc-two h3 {
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 4px;
+  color: #444444;
+}
+
+.cc-two p {
+  margin: 0;
+}
+
+/* <table> = rows and columns, the right tool for a list of items with prices */
+.cc-items {
+  width: 100%;
+  border-collapse: collapse;   /* single lines between cells instead of double */
+  margin-top: 16px;
+}
+
+.cc-items th,
+.cc-items td {
+  text-align: left;
+  padding: 6px 0;
+  border-bottom: 1px solid #cccccc;
+  vertical-align: top;
+}
+
+.cc-items th:last-child,
+.cc-items td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cc-totals {
+  margin: 10px 0 0 auto;   /* pushed to the right side of the page */
+  max-width: 320px;
+}
+
+.cc-notes {
+  margin-top: 14px;
+}
+
+.cc-policy {
+  margin-top: 18px;
+  font-size: 9.5pt;
+  border: 1px solid #999999;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.cc-policy ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.cc-thanks {
+  text-align: center;
+  font-weight: 700;
+  margin-top: 18px;
+}
+
+/* ---------- Printing ----------
+   body[data-print="customer"] -> print ONLY the customer copy
+   anything else (kitchen)     -> print the order details, never the customer copy */
 @media print {
   .app-header, .demo-banner, .tabbar, .toast, .no-print, .back {
     display: none !important;
@@ -630,5 +733,19 @@ textarea {
     box-shadow: none;
     border: 1px solid #999999;
     break-inside: avoid;
+  }
+
+  body[data-print="customer"] .print-area {
+    display: none !important;
+  }
+
+  body[data-print="customer"] .customer-copy {
+    display: block;
+  }
+
+  /* Ask the printer to keep the logo's dark background instead of dropping it */
+  .cc-logo {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

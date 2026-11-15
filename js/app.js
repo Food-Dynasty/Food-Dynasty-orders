@@ -292,11 +292,17 @@ async function showOrder(id) {
       (o.notes ? '<div class="panel"><h2>Notes</h2><p class="items-text">' + esc(o.notes) + "</p></div>" : "") +
     "</section>" +
 
+    // The customer's copy: hidden on screen, only shown when printing it (see printCopy)
+    (o.kind === "catering" ? customerCopyHTML(o, balance) : "") +
+
     // Action buttons (not printed)
     '<div class="actions no-print">' +
       (next ? '<button type="button" class="btn btn-primary btn-block" data-action="status" data-status="' + next + '">Mark as ' + STATUS_LABEL[next] + "</button>" : "") +
       '<div class="btn-row">' +
-        '<button type="button" class="btn" data-action="print">🖨 Print</button>' +
+        (o.kind === "catering"
+          ? '<button type="button" class="btn btn-primary" data-action="print" data-copy="customer">🧾 Customer copy</button>' +
+            '<button type="button" class="btn" data-action="print" data-copy="kitchen">🖨 Kitchen copy</button>'
+          : '<button type="button" class="btn" data-action="print" data-copy="kitchen">🖨 Print</button>') +
         '<button type="button" class="btn" data-action="reorder">↻ Reorder</button>' +
         '<a class="btn" href="#/customer/' + esc(c.id) + '">👤 Customer</a>' +
       "</div>" +
@@ -317,7 +323,7 @@ async function showOrder(id) {
         toast("Order #" + o.id + ": " + STATUS_LABEL[status]);
         route();
       }
-      if (action === "print") window.print();
+      if (action === "print") printCopy(button.dataset.copy);
       if (action === "reorder") startReorder(o);
     } catch (error) {
       showError(error);
@@ -327,6 +333,81 @@ async function showOrder(id) {
 
 function row(label, value, extraClass) {
   return '<p class="total-row ' + (extraClass || "") + '"><span>' + label + "</span><span>" + value + "</span></p>";
+}
+
+// PRINTING TWO DIFFERENT COPIES FROM ONE PAGE
+// The page holds both the kitchen view (.print-area) and the customer copy (.customer-copy).
+// Before printing we put data-print="kitchen" or "customer" on <body>; the print CSS
+// (bottom of css/app.css) uses it to show only the matching copy. After the print
+// dialog closes, the "afterprint" event removes it again.
+function printCopy(which) {
+  document.body.dataset.print = which || "kitchen";
+  window.addEventListener("afterprint", function cleanup() {
+    delete document.body.dataset.print;
+    window.removeEventListener("afterprint", cleanup);
+  });
+  window.print();
+}
+
+// The customer's copy of a catering order: logo, store info, what they ordered,
+// money owed, and the ordering policies. Plain and printer-friendly.
+function customerCopyHTML(o, balance) {
+  const c = o.customer || {};
+  const isDelivery = o.fulfillment === "delivery";
+  const ordered = new Date(o.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const due = new Date(o.due_at).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  return (
+    '<section class="customer-copy" aria-hidden="true">' +
+      '<header class="cc-head">' +
+        '<img src="images/logo.png" alt="Food Dynasty" class="cc-logo">' +
+        '<div class="cc-store">' +
+          "<strong>Food Dynasty Supermarket</strong><br>" +
+          "1071 Bay St, Staten Island, NY 10305<br>" +
+          "(718) 816-1100 · food-dynasty.github.io/Food-Dynasty-Website" +
+        "</div>" +
+      "</header>" +
+
+      '<h1 class="cc-title">Catering Order Confirmation</h1>' +
+      '<p class="cc-meta">Order #' + o.id + " · Placed " + esc(ordered) + "</p>" +
+
+      '<div class="cc-two">' +
+        "<div><h3>Customer</h3><p>" + esc(c.name) + "<br>" + esc(prettyPhone(c.phone)) + "</p></div>" +
+        "<div><h3>" + (isDelivery ? "Delivery" : "Pickup") + "</h3><p>" + esc(due) +
+          (isDelivery ? "<br>" + esc(o.delivery_address) : "<br>At the store, 1071 Bay St") + "</p></div>" +
+      "</div>" +
+
+      '<table class="cc-items">' +
+        "<thead><tr><th>Item</th><th>Amount</th></tr></thead><tbody>" +
+        (o.items || []).map(function (line) {
+          return "<tr><td>" + esc(line.label || line.name) + (line.note ? "<br><small>" + esc(line.note) + "</small>" : "") +
+                 "</td><td>" + money(line.line_total) + "</td></tr>";
+        }).join("") +
+        "</tbody></table>" +
+
+      '<div class="cc-totals">' +
+        row("Subtotal", money(o.subtotal)) +
+        (Number(o.delivery_fee) ? row("Delivery fee", money(o.delivery_fee)) : "") +
+        row("NYC sales tax", money(o.tax)) +
+        row("Total", money(o.total), "grand") +
+        row("Deposit paid", money(o.deposit_paid)) +
+        row("Balance due " + (isDelivery ? "on delivery" : "at pickup"), money(balance), "grand") +
+      "</div>" +
+
+      (o.notes ? '<p class="cc-notes"><strong>Notes:</strong> ' + esc(o.notes) + "</p>" : "") +
+
+      '<div class="cc-policy">' +
+        "<strong>Good to know</strong>" +
+        "<ul>" +
+          "<li>Changes or cancellations must be made at least 3 days before " + (isDelivery ? "delivery" : "pickup") + ".</li>" +
+          "<li>Cancelled credit card orders have a 10% cancellation fee.</li>" +
+          "<li>Hot trays come fully cooked: heat at 350°F for about 30 minutes (2 hours in chafing racks).</li>" +
+          "<li>Rack and board deposits are refunded when returned within 1 week.</li>" +
+        "</ul>" +
+      "</div>" +
+      '<p class="cc-thanks">Thank you for choosing Food Dynasty!</p>' +
+    "</section>"
+  );
 }
 
 
