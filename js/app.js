@@ -125,7 +125,19 @@ function nextStatus(order) {
 function badges(order) {
   return '<span class="badge badge-' + order.kind + '">' + (order.kind === "catering" ? "Catering" : "Grocery") + "</span>" +
          '<span class="badge">' + (order.fulfillment === "delivery" ? "Delivery" : "Pickup") + "</span>" +
-         '<span class="status status-' + order.status + '">' + STATUS_LABEL[order.status] + "</span>";
+         '<span class="status status-' + order.status + '">' + STATUS_LABEL[order.status] + "</span>" +
+         (order.status !== "cancelled" && amountOwed(order) > 0 ? '<span class="badge badge-unpaid">Unpaid</span>' : "");
+}
+
+// How much is still owed on an order.
+//   Grocery: the whole total until a payment method other than "Not paid yet" is chosen.
+//   Catering: total minus the deposit/payments recorded.
+function amountOwed(order) {
+  if (order.kind === "grocery") {
+    const paid = order.payment_method && order.payment_method !== "Not paid yet";
+    return paid ? 0 : Number(order.total) || 0;
+  }
+  return Math.max(0, roundCents(Number(order.total) - Number(order.deposit_paid || 0)));
 }
 
 
@@ -295,7 +307,10 @@ async function showOrder(id) {
         (Number(o.delivery_fee) ? row("Delivery fee", money(o.delivery_fee)) : "") +
         (o.kind === "catering" ? row("Tax", money(o.tax)) : "") +
         row(o.kind === "catering" ? "Total" : "Register total", money(o.total), "grand") +
-        (Number(o.deposit_paid) ? row("Deposit paid", money(o.deposit_paid)) + row("Balance due", money(balance), "grand") : "") +
+        (Number(o.deposit_paid)
+          ? row(Number(o.deposit_paid) >= Number(o.total) ? "Amount paid" : "Deposit paid", money(o.deposit_paid)) +
+            row("Balance due", money(Math.max(0, balance)), "grand")
+          : "") +
         (o.payment_method ? row("Payment", esc(o.payment_method)) : "") +
       "</div>" +
       (o.notes ? '<div class="panel"><h2>Notes</h2><p class="items-text">' + esc(o.notes) + "</p></div>" : "") +
@@ -305,8 +320,15 @@ async function showOrder(id) {
     (o.kind === "catering" ? customerCopyHTML(o, balance) : "") +
 
     // Action buttons (not printed)
+    // PAYMENT: change it any time, e.g. a "Not paid yet" order paid at the door
+    (o.status !== "cancelled" ? paymentPanelHTML(o) : "") +
+
     '<div class="actions no-print">' +
       (next ? '<button type="button" class="btn btn-primary btn-block" data-action="status" data-status="' + next + '">Mark as ' + STATUS_LABEL[next] + "</button>" : "") +
+      // Shortcut: finish the order in one tap instead of stepping through every status
+      (next && next !== "completed"
+        ? '<button type="button" class="btn btn-block complete-now" data-action="status" data-status="completed">✓ Complete now</button>'
+        : "") +
       '<div class="btn-row">' +
         (o.kind === "catering"
           ? '<button type="button" class="btn btn-primary" data-action="print" data-copy="customer">🧾 Customer copy</button>' +
@@ -335,6 +357,7 @@ async function showOrder(id) {
       if (action === "print") printCopy(button.dataset.copy);
       if (action === "reorder") startReorder(o);
       if (action === "pick") await togglePicked(o, checklist, Number(button.dataset.index), button);
+      if (action === "pay") await recordPayment(o, button.dataset.method);
     } catch (error) {
       showError(error);
     }
@@ -343,6 +366,54 @@ async function showOrder(id) {
 
 function row(label, value, extraClass) {
   return '<p class="total-row ' + (extraClass || "") + '"><span>' + label + "</span><span>" + value + "</span></p>";
+}
+
+/* ---------- Payment ---------- */
+
+const PAY_METHODS = ["Cash", "Card", "EBT"];
+
+function paymentPanelHTML(o) {
+  const owed = amountOwed(o);
+  const state = owed > 0
+    ? '<p class="pay-state unpaid">Unpaid: ' + money(owed) + " still owed</p>"
+    : '<p class="pay-state paid">Paid' + (o.payment_method ? " · " + esc(o.payment_method) : "") + "</p>";
+
+  // Catering can't be paid with EBT (prepared/hot food), so only offer it for groceries
+  const methods = o.kind === "grocery" ? PAY_METHODS : ["Cash", "Card"];
+
+  return (
+    '<div class="panel no-print"><h2>Payment</h2>' + state +
+      (owed > 0
+        ? '<p class="muted">Tap how it was paid:</p>' +
+          '<div class="btn-row">' +
+            methods.map(function (m) {
+              return '<button type="button" class="btn" data-action="pay" data-method="' + m + '">' + m + "</button>";
+            }).join("") +
+          "</div>"
+        : '<button type="button" class="link-btn" data-action="pay" data-method="Not paid yet">Mark as not paid</button>') +
+    "</div>"
+  );
+}
+
+// Grocery: just record the method. Catering: paying means the balance is settled,
+// so the amount paid becomes the full total.
+async function recordPayment(order, method) {
+  const changes = { payment_method: method };
+  if (order.kind === "catering") {
+    if (method === "Not paid yet") {
+      // Undo: back to only the original deposit isn't known anymore, so ask
+      const deposit = prompt("Deposit actually paid so far? (0 if none)", "0");
+      if (deposit === null) return;
+      changes.deposit_paid = roundCents(Number(deposit) || 0);
+    } else {
+      const owed = amountOwed(order);
+      if (!confirm("Mark the balance of " + money(owed) + " as paid by " + method + "?")) return;
+      changes.deposit_paid = Number(order.total);
+    }
+  }
+  await Store.updateOrder(order.id, changes);
+  toast(method === "Not paid yet" ? "Marked as not paid" : "Paid · " + method);
+  route();
 }
 
 /* ---------- Grocery checklist ("in the basket") ---------- */
@@ -693,7 +764,7 @@ function detailsHTML() {
 
       '<div class="two-col">' +
         '<label>Payment<select name="payment">' +
-          ["", "Cash", "Card", "EBT", "Not paid yet"].map(function (p) {
+          (isCatering ? ["", "Cash", "Card", "Not paid yet"] : ["", "Cash", "Card", "EBT", "Not paid yet"]).map(function (p) {
             return '<option value="' + p + '"' + (draft.payment === p ? " selected" : "") + ">" + (p || "Choose…") + "</option>";
           }).join("") +
         "</select></label>" +

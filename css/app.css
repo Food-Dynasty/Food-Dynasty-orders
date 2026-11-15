@@ -401,6 +401,28 @@ textarea {
 .status-completed { background: #c8e6c9; color: #1b5e20; }
 .status-cancelled { background: #eeeeee; color: #777777; text-decoration: line-through; }
 
+.badge-unpaid {
+  background: #fdecea;
+  color: var(--red);
+}
+
+.pay-state {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.pay-state.unpaid {
+  color: var(--red);
+}
+
+.pay-state.paid {
+  color: var(--green);
+}
+
+.complete-now {
+  margin-top: 8px;
+}
+
 .reorder-btn {
   margin-top: 6px;
 }
