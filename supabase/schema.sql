@@ -83,6 +83,20 @@ drop policy if exists "staff can do everything" on public.orders;
 create policy "staff can do everything" on public.orders
   for all to authenticated using (true) with check (true);
 
+-- ---------- SECURITY: WHO MAY USE THE TABLES AT ALL ----------
+-- The project was created with "Automatically expose new tables" OFF, so by default
+-- nobody can reach these tables through the app's API. These GRANTs open them
+-- ONLY to signed-in staff ("authenticated"). Visitors who aren't signed in ("anon")
+-- get no access at all, and RLS above still applies on top of this.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.customers to authenticated;
+grant select, insert, update, delete on public.orders to authenticated;
+-- order numbers (1, 2, 3...) come from a counter called a "sequence"
+grant usage, select on all sequences in schema public to authenticated;
+
+revoke all on public.customers from anon;
+revoke all on public.orders from anon;
+
 -- IMPORTANT (done in the dashboard, not here):
 --   Authentication -> Sign In / Providers -> turn OFF "Allow new users to sign up".
 --   Then create each staff login yourself under Authentication -> Users -> Add user.
