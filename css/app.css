@@ -99,6 +99,69 @@ small,
   color: var(--yellow);
 }
 
+/* New website order alert: sticks under the header until tapped or dismissed */
+.alert-banner {
+  position: sticky;
+  top: 52px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--yellow);
+  padding: 10px 12px 10px 16px;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  animation: alert-in 0.35s ease;
+}
+
+.alert-banner a {
+  flex: 1;
+  text-decoration: none;
+}
+
+.alert-banner button {
+  font: inherit;
+  font-size: 1.1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+/* Slides down from under the header. Only movement, no fading: if a device
+   ever skips the animation, the banner is still fully visible. */
+@keyframes alert-in {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-banner {
+    animation: none;
+  }
+}
+
+/* Red count bubble on the Orders tab */
+.tabbar a {
+  position: relative;
+}
+
+.tab-badge {
+  position: absolute;
+  top: 6px;
+  left: calc(50% + 8px);
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--red);
+  color: white;
+  font-size: 0.75rem;
+  line-height: 20px;
+  text-align: center;
+}
+
 .demo-banner {
   background: #fff3cd;
   text-align: center;

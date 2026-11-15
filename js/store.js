@@ -108,6 +108,15 @@ const DemoStore = {
       .map(function (o) { return self._withCustomer(o); });
   },
 
+  // Website orders that nobody has confirmed yet (still "new")
+  async listNewOnline() {
+    const self = this;
+    return this._read("fd-app-orders")
+      .filter(function (o) { return o.source === "online" && o.status === "new"; })
+      .sort(function (a, b) { return a.id - b.id; })
+      .map(function (o) { return self._withCustomer(o); });
+  },
+
   async customerOrders(customerId) {
     const self = this;
     return this._read("fd-app-orders")
@@ -224,6 +233,12 @@ const CloudStore = {
     if (fromISO) request = request.gte("due_at", fromISO);   // gte = greater than or equal
     if (toISO) request = request.lt("due_at", toISO);        // lt  = less than
     return unwrap(await request);
+  },
+
+  // Website orders that nobody has confirmed yet (still "new")
+  async listNewOnline() {
+    return unwrap(await this.client.from("orders").select(ORDER_COLUMNS)
+      .eq("source", "online").eq("status", "new").order("id"));
   },
 
   async customerOrders(customerId) {

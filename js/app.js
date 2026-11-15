@@ -226,10 +226,14 @@ async function showOrders(range) {
   const ranges = {
     today: [today, addDays(today, 1), "Today"],
     upcoming: [addDays(today, 1), addDays(today, 60), "Upcoming"],
-    past: [addDays(today, -14), today, "Past 2 weeks"]
+    past: [addDays(today, -14), today, "Past"],
+    // Website orders waiting to be confirmed, whatever their date
+    online: [null, null, "🌐 New" + (onlineWaiting.length ? " (" + onlineWaiting.length + ")" : "")]
   };
   const r = ranges[range] || ranges.today;
-  let orders = await Store.listOrders(r[0].toISOString(), r[1].toISOString());
+  let orders = range === "online"
+    ? await Store.listNewOnline()
+    : await Store.listOrders(r[0].toISOString(), r[1].toISOString());
   if (range === "past") orders = orders.reverse();   // most recent first
 
   const open = orders.filter(function (o) { return o.status !== "completed" && o.status !== "cancelled"; });
@@ -356,6 +360,7 @@ async function showOrder(id) {
         if (status === "cancelled" && !confirm("Cancel order #" + o.id + "?")) return;
         await Store.updateOrder(o.id, { status: status });
         toast("Order #" + o.id + ": " + STATUS_LABEL[status]);
+        if (o.source === "online") checkOnlineOrders();   // update the "new online" count
         route();
       }
       if (action === "print") printCopy(button.dataset.copy);
@@ -1177,6 +1182,7 @@ function showLogin() {
     try {
       currentUser = await Store.signIn(form.email.value.trim(), form.password.value);
       updateHeader();
+      checkOnlineOrders();   // start counting website orders right after signing in
       location.hash = "#/orders";
     } catch (error) {
       const box = document.getElementById("login-error");
@@ -1191,6 +1197,92 @@ function showLogin() {
 function updateHeader() {
   document.getElementById("who").textContent = currentUser ? currentUser.email : "";
   document.getElementById("sign-out").hidden = !(IS_CLOUD && currentUser);
+}
+
+
+/* ============ 8b. LIVE ALERTS FOR WEBSITE ORDERS ============ */
+// While the app is open, it checks for new website orders every 15 seconds.
+// A brand-new one triggers: a banner at the top, a two-tone chime, a vibration
+// (on phones that support it), and a count on the Orders tab.
+
+const CHECK_EVERY_MS = 15000;
+let onlineWaiting = [];        // website orders still "new" (not confirmed yet)
+let knownOnlineIds = null;     // order numbers we've already seen (null = first check)
+let checking = false;          // stops two checks from running at the same time
+
+async function checkOnlineOrders() {
+  if (checking || (IS_CLOUD && !currentUser)) return;
+  checking = true;
+  try {
+    const list = await Store.listNewOnline();
+    onlineWaiting = list;
+    updateOnlineBadge();
+
+    // The first check after opening the app only remembers what's already there;
+    // after that, anything we haven't seen before is NEW and gets announced.
+    if (knownOnlineIds !== null) {
+      const fresh = list.filter(function (o) { return !knownOnlineIds.has(o.id); });
+      if (fresh.length) announce(fresh[fresh.length - 1], fresh.length);
+    }
+    knownOnlineIds = new Set([].concat(Array.from(knownOnlineIds || []), list.map(function (o) { return o.id; })));
+  } catch (error) {
+    // No internet for a moment: just try again on the next check
+  } finally {
+    checking = false;
+  }
+}
+
+// Count bubble on the Orders tab + the count in the browser tab's title
+function updateOnlineBadge() {
+  const badge = document.getElementById("online-badge");
+  const n = onlineWaiting.length;
+  badge.textContent = n;
+  badge.hidden = n === 0;
+  document.title = (n ? "(" + n + ") " : "") + "Food Dynasty Orders";
+}
+
+function announce(order, count) {
+  const name = order.customer ? order.customer.name : "a customer";
+  const banner = document.getElementById("alert-banner");
+  document.getElementById("alert-text").textContent =
+    "🔔 New online order #" + order.id + " from " + name +
+    " · " + (order.fulfillment === "delivery" ? "Delivery " : "Pickup ") + prettyWhen(order.due_at) +
+    (count > 1 ? " (+" + (count - 1) + " more)" : "");
+  document.getElementById("alert-link").href = count > 1 ? "#/orders/online" : "#/order/" + order.id;
+  banner.hidden = false;
+  chime();
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  // If staff are looking at the orders list, refresh it so the new order appears
+  if ((location.hash || "#/orders").indexOf("#/orders") === 0) route();
+}
+
+// A two-note chime made with the Web Audio API (no sound file needed).
+// Browsers only allow sound after someone has tapped the page once, so the audio
+// is "unlocked" on the first tap after the app opens.
+let audio = null;
+function unlockAudio() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === "suspended") audio.resume();
+  } catch (error) { /* no sound support: the banner still shows */ }
+}
+
+function chime() {
+  if (!audio) return;
+  const start = audio.currentTime;
+  [880, 1175].forEach(function (freq, i) {   // two notes, the second one higher
+    const t = start + i * 0.25;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);    // quick fade in
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); // gentle fade out
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  });
 }
 
 
@@ -1213,5 +1305,21 @@ function updateHeader() {
   }
   updateHeader();
 
+  // Live alerts: unlock sound on the first tap, hide the banner when it's tapped,
+  // check right away, then every 15 seconds, and again whenever the app comes
+  // back to the front (e.g. after switching apps on a phone).
+  document.addEventListener("pointerdown", unlockAudio);
+  document.getElementById("alert-link").addEventListener("click", function () {
+    document.getElementById("alert-banner").hidden = true;
+  });
+  document.getElementById("alert-close").addEventListener("click", function () {
+    document.getElementById("alert-banner").hidden = true;
+  });
+  setInterval(checkOnlineOrders, CHECK_EVERY_MS);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") checkOnlineOrders();
+  });
+
+  await checkOnlineOrders();
   await route();
 })();
