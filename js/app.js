@@ -262,7 +262,7 @@ function orderCardHTML(o) {
     '<li><a class="card order-card' + (done ? " done" : "") + '" href="#/order/' + o.id + '">' +
       '<div class="card-row"><strong>' + esc(prettyWhen(o.due_at)) + '</strong><span class="order-no">#' + o.id + "</span></div>" +
       '<div class="card-row"><span class="card-name">' + esc(o.customer ? o.customer.name : "(unknown)") + "</span>" +
-        "<strong>" + money(o.total) + "</strong></div>" +
+        "<strong>" + (Number(o.total) > 0 ? money(o.total) : "Total TBD") + "</strong></div>" +
       '<div class="badges">' + badges(o) + "</div>" +
     "</a></li>"
   );
@@ -311,7 +311,8 @@ async function showOrder(id) {
         (o.kind === "catering" ? row("Subtotal", money(o.subtotal)) : "") +
         (Number(o.delivery_fee) ? row("Delivery fee", money(o.delivery_fee)) : "") +
         (o.kind === "catering" ? row("Tax", money(o.tax)) : "") +
-        row(o.kind === "catering" ? "Total" : "Register total", money(o.total), "grand") +
+        row(o.kind === "catering" ? "Total" : "Register total",
+            (o.kind === "grocery" && !(Number(o.total) > 0)) ? "Not entered yet" : money(o.total), "grand") +
         (Number(o.deposit_paid)
           ? row(Number(o.deposit_paid) >= Number(o.total) ? "Amount paid" : "Deposit paid", money(o.deposit_paid)) +
             row("Balance due", money(Math.max(0, balance)), "grand")
@@ -367,6 +368,11 @@ async function showOrder(id) {
       if (action === "reorder") startReorder(o);
       if (action === "pick") await togglePicked(o, checklist, Number(button.dataset.index), button);
       if (action === "pay") await recordPayment(o, button.dataset.method);
+      if (action === "set-total") await saveRegisterTotal(o, document.getElementById("register-total").value);
+      if (action === "change-total") {
+        const value = prompt("New register total for order #" + o.id + ":", Number(o.total).toFixed(2));
+        if (value !== null) await saveRegisterTotal(o, value);
+      }
     } catch (error) {
       showError(error);
     }
@@ -399,6 +405,20 @@ function priceProblems(order) {
 }
 
 function onlinePanelHTML(o) {
+  // Grocery lists from the website have no prices: staff shop them, then enter the total
+  if (o.kind === "grocery") {
+    return (
+      '<div class="panel online-panel no-print">' +
+        "<h2>🌐 Grocery list from the website</h2>" +
+        "<ol class=\"mini-steps\">" +
+          "<li>Shop the list, tapping each item as it goes in the basket.</li>" +
+          "<li>Enter the <strong>register total</strong> below.</li>" +
+          "<li>Call the customer with the total, then deliver.</li>" +
+        "</ol>" +
+      "</div>"
+    );
+  }
+
   const problems = o.kind === "catering" ? priceProblems(o) : [];
   return (
     '<div class="panel online-panel no-print">' +
@@ -417,6 +437,19 @@ function onlinePanelHTML(o) {
 const PAY_METHODS = ["Cash", "Card", "EBT"];
 
 function paymentPanelHTML(o) {
+  // Grocery order without a total yet (sent from the website): ask for it first
+  if (o.kind === "grocery" && !(Number(o.total) > 0)) {
+    return (
+      '<div class="panel no-print"><h2>Register total</h2>' +
+        '<p class="muted">After shopping, ring it up and enter the total here.</p>' +
+        '<div class="total-entry">' +
+          '<input id="register-total" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" aria-label="Register total">' +
+          '<button type="button" class="btn btn-primary" data-action="set-total">Save total</button>' +
+        "</div>" +
+      "</div>"
+    );
+  }
+
   const owed = amountOwed(o);
   const state = owed > 0
     ? '<p class="pay-state unpaid">Unpaid: ' + money(owed) + " still owed</p>"
@@ -435,8 +468,20 @@ function paymentPanelHTML(o) {
             }).join("") +
           "</div>"
         : '<button type="button" class="link-btn" data-action="pay" data-method="Not paid yet">Mark as not paid</button>') +
+      // Grocery totals can be corrected (e.g. an item was added after ringing up)
+      (o.kind === "grocery" ? ' <button type="button" class="link-btn" data-action="change-total">Change register total</button>' : "") +
     "</div>"
   );
+}
+
+// Saves a grocery order's register total (subtotal = total: the register already added any tax)
+async function saveRegisterTotal(order, value) {
+  const total = roundCents(Number(value));
+  if (!(total > 0)) throw new Error("Enter the register total, for example 64.20");
+  await Store.updateOrder(order.id, { subtotal: total, total: total });
+  toast("Total saved: " + money(total) +
+        (order.fulfillment === "delivery" && total < GROCERY_DELIVERY_MINIMUM ? " (under the $" + GROCERY_DELIVERY_MINIMUM + " delivery minimum)" : ""));
+  route();
 }
 
 // Grocery: just record the method. Catering: paying means the balance is settled,

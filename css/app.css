@@ -473,6 +473,29 @@ textarea {
   border-left: 6px solid #1565c0;
 }
 
+.mini-steps {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.mini-steps li {
+  margin: 3px 0;
+}
+
+/* Register total: the box and its button side by side */
+.total-entry {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.total-entry input {
+  flex: 1;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
 .online-panel ul {
   margin: 6px 0 0;
   padding-left: 20px;
