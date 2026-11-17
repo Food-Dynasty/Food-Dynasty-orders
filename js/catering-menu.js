@@ -49,21 +49,72 @@ function categoryInSeason(category, today) {
   return day >= new Date(day.getFullYear(), 10, 1) && day <= new Date(lastOrderDay.getFullYear(), lastOrderDay.getMonth(), lastOrderDay.getDate(), 23, 59);
 }
 
+// CHOICES: some items make the customer pick options (like a Thanksgiving package:
+// 1 stuffing, 1 pasta, 1 vegetable, 1 potato, pies). Written on an item as
+//   choices: [{ name: "Stuffing", options: [...] }, { name: "Pie", count: 2, options: [...] }]
+// count = how many to pick from that list (default 1). The order page and the staff
+// app show one dropdown per pick, and an item can't be added until all are picked.
+const TG_STUFFING = ["Traditional Vegetable", "Sausage Stuffing", "Cranberry & Vegetables"];
+const TG_PASTA = ["Baked Ziti", "Penne Vodka", "Penne Alfredo", "Mac & Cheese"];
+const TG_VEGETABLE = ["Broccoli Oreganata", "Stuffed Mushrooms", "String Beans", "Grilled Vegetables"];
+// The printed ad lists Rosemary only for the half-tray dinner
+const TG_POTATO_FULL = ["Mashed Potato", "Roasted Potatoes", "Potato Seasoned Wedges", "Candied Yams",
+                        "Buttery Mashed", "Garlic Mashed", "Caramelized Onion", "Sweet Potato"];
+const TG_POTATO_HALF = TG_POTATO_FULL.concat(["Rosemary Potatoes"]);
+// TODO: confirm the pie flavors with the store (the printed ad doesn't list them)
+const TG_PIE = ["Apple", "Pumpkin", "Sweet Potato"];
+
+// One entry per dropdown: a "Pie" choice with count 2 becomes "Pie 1" and "Pie 2"
+function choiceSlots(item) {
+  const slots = [];
+  (item.choices || []).forEach(function (choice) {
+    const count = choice.count || 1;
+    for (let i = 1; i <= count; i++) {
+      slots.push({ label: count > 1 ? choice.name + " " + i : choice.name, options: choice.options });
+    }
+  });
+  return slots;
+}
+
+// ["Sausage Stuffing", "Baked Ziti", ...] -> "Stuffing: Sausage Stuffing · Pasta: Baked Ziti · ..."
+function choicesText(item, picks) {
+  return choiceSlots(item).map(function (slot, i) {
+    return slot.label + ": " + ((picks || [])[i] || "?");
+  }).join(" · ");
+}
+
+// True when every dropdown has a valid pick (protects against old or edited data)
+function choicesComplete(item, picks) {
+  return choiceSlots(item).every(function (slot, i) {
+    return picks && slot.options.indexOf(picks[i]) >= 0;
+  });
+}
+
 const CATERING_MENU = [
   {
     id: "thanksgiving",
     name: "Thanksgiving Dinner Specials",
     season: "thanksgiving",
-    note: "Plus tax. Write your choices in the item's note: 1 stuffing, 1 pasta, 1 vegetable, 1 potato and your pie. " +
-          "Stuffing: Traditional Vegetable, Sausage, or Cranberry & Vegetables. " +
-          "Pasta: Baked Ziti, Penne Vodka, Penne Alfredo, or Mac & Cheese. " +
-          "Vegetable: Broccoli Oreganata, Stuffed Mushrooms, String Beans, or Grilled Vegetables. " +
-          "Potato: Mashed, Roasted, Seasoned Wedges, Candied Yams, Buttery Mashed, Garlic Mashed, Caramelized Onion, or Sweet Potato.",
+    note: "Plus tax. Pick your stuffing, pasta, vegetable, potato and pie for each dinner.",
     items: [
       { name: "Thanksgiving Dinner for 8–10", sizes: [["12–14 lb turkey, half trays", 299]],
-        hint: "Cooked turkey with half trays of stuffing, pasta, vegetable and potato. Includes turkey gravy, cranberry sauce, dinner rolls and 1 pie." },
+        hint: "Cooked turkey with half trays of stuffing, pasta, vegetable and potato. Includes turkey gravy, cranberry sauce, dinner rolls and 1 pie.",
+        choices: [
+          { name: "Stuffing", options: TG_STUFFING },
+          { name: "Pasta", options: TG_PASTA },
+          { name: "Vegetable", options: TG_VEGETABLE },
+          { name: "Potato", options: TG_POTATO_HALF },
+          { name: "Pie", options: TG_PIE }
+        ] },
       { name: "Thanksgiving Dinner for 15–20", sizes: [["18–20 lb turkey, full trays", 399]],
-        hint: "Cooked turkey with full trays of stuffing, pasta, vegetable and potato. Includes prosciutto bread, turkey gravy, cranberry sauce, dinner rolls and 2 pies." }
+        hint: "Cooked turkey with full trays of stuffing, pasta, vegetable and potato. Includes prosciutto bread, turkey gravy, cranberry sauce, dinner rolls and 2 pies.",
+        choices: [
+          { name: "Stuffing", options: TG_STUFFING },
+          { name: "Pasta", options: TG_PASTA },
+          { name: "Vegetable", options: TG_VEGETABLE },
+          { name: "Potato", options: TG_POTATO_FULL },
+          { name: "Pie", count: 2, options: TG_PIE }
+        ] }
     ]
   },
   {

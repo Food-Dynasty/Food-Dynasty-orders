@@ -501,6 +501,33 @@ textarea {
   border-left: 6px solid #1565c0;
 }
 
+/* Thanksgiving dinner picks: dropdowns in the catering picker, 2 per row */
+.choice-picks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 10px;
+}
+
+.choice-picks:empty {
+  display: none;
+}
+
+.choice-picks select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* A dropdown still empty after tapping "Add to order" */
+.choice-picks select.missing {
+  outline: 2px solid #c62828;
+}
+
+/* The picks under an item's name (order screen, new order list) */
+.line-choices {
+  font-size: 0.85rem;
+  color: #333333;
+}
+
 /* Customer shopped in the store and we deliver the bags */
 .badge-instore {
   background: #f3e5f5;

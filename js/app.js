@@ -291,7 +291,9 @@ async function showOrder(id) {
 
   const itemsHTML = o.kind === "catering"
     ? "<ul class=\"line-list\">" + (o.items || []).map(function (line) {
-        return "<li><span>" + esc(line.label || line.name) + (line.note ? '<br><small>Note: ' + esc(line.note) + "</small>" : "") +
+        return "<li><span>" + esc(line.label || line.name) +
+               (line.choices_text ? '<br><strong class="line-choices">' + esc(line.choices_text) + "</strong>" : "") +
+               (line.note ? '<br><small>Note: ' + esc(line.note) + "</small>" : "") +
                "</span><span>" + money(line.line_total) + "</span></li>";
       }).join("") + "</ul>"
     // In-store deliveries: already shopped and bagged, so just say how many bags
@@ -622,7 +624,9 @@ function customerCopyHTML(o, balance) {
       '<table class="cc-items">' +
         "<thead><tr><th>Item</th><th>Amount</th></tr></thead><tbody>" +
         (o.items || []).map(function (line) {
-          return "<tr><td>" + esc(line.label || line.name) + (line.note ? "<br><small>" + esc(line.note) + "</small>" : "") +
+          return "<tr><td>" + esc(line.label || line.name) +
+            (line.choices_text ? "<br><small>" + esc(line.choices_text) + "</small>" : "") +
+            (line.note ? "<br><small>" + esc(line.note) + "</small>" : "") +
                  "</td><td>" + money(line.line_total) + "</td></tr>";
         }).join("") +
         "</tbody></table>" +
@@ -695,7 +699,13 @@ function startReorder(order) {
   if (order.kind === "catering") {
     draft.lines = (order.items || [])
       .filter(function (line) { return MENU_ITEMS[line.id]; })   // skip items no longer on the menu
-      .map(function (line) { return { id: line.id, size: line.size || 0, qty: line.qty, note: line.note || "" }; });
+      // Dinners whose picks are no longer on the menu are skipped too
+      .filter(function (line) { return !MENU_ITEMS[line.id].choices || choicesComplete(MENU_ITEMS[line.id], line.choices); })
+      .map(function (line) {
+        const copy = { id: line.id, size: line.size || 0, qty: line.qty, note: line.note || "" };
+        if (line.choices) copy.choices = line.choices.slice();
+        return copy;
+      });
   } else {
     draft.itemsText = order.items_text || "";
   }
@@ -909,6 +919,8 @@ function cateringPickerHTML() {
       "</select></label>" +
       '<label>Item<select id="pick-item"></select></label>' +
       '<label id="pick-size-label">Size<select id="pick-size"></select></label>' +
+      // Thanksgiving dinners etc.: one dropdown per side/pie (filled by fillChoicePicks)
+      '<div class="choice-picks" id="pick-choices"></div>' +
       '<button type="button" class="btn btn-primary" data-action="add-line">Add to order</button>' +
     "</div>" +
     '<ul class="line-list editable" id="lines">' + linesHTML() + "</ul>"
@@ -936,6 +948,18 @@ function fillSizeSelect() {
       return '<option value="' + i + '">' + esc(s[0]) + " · " + money(s[1]) + "</option>";
     }).join("");
   }
+  fillChoicePicks(item);
+}
+
+// Items with choices (Thanksgiving dinners): a dropdown per pick, starting on "Choose…"
+// (choiceSlots comes from js/catering-menu.js, shared with the website)
+function fillChoicePicks(item) {
+  document.getElementById("pick-choices").innerHTML = choiceSlots(item).map(function (slot, i) {
+    return '<label>' + esc(slot.label) + '<select data-slot="' + i + '">' +
+      '<option value="">Choose…</option>' +
+      slot.options.map(function (option) { return '<option value="' + esc(option) + '">' + esc(option) + "</option>"; }).join("") +
+      "</select></label>";
+  }).join("");
 }
 
 function linesHTML() {
@@ -945,7 +969,9 @@ function linesHTML() {
     const min = item.unit ? item.min : 1;
     return (
       '<li data-index="' + i + '">' +
-        '<div class="line-top"><span>' + esc(cateringLineLabel(line)) + "</span><strong>" + money(cateringUnitPrice(line) * line.qty) + "</strong></div>" +
+        '<div class="line-top"><span>' + esc(cateringLineLabel(line)) +
+          (line.choices ? '<br><small class="line-choices">' + esc(choicesText(item, line.choices)) + "</small>" : "") +
+          "</span><strong>" + money(cateringUnitPrice(line) * line.qty) + "</strong></div>" +
         '<div class="line-controls">' +
           '<button type="button" class="qty" data-action="qty" data-step="-1" aria-label="Less">−</button>' +
           '<input class="qty-input" type="number" inputmode="numeric" min="' + min + '" value="' + line.qty + '" aria-label="Quantity">' +
@@ -995,9 +1021,27 @@ async function handleNewOrderClick(event) {
     const id = document.getElementById("pick-item").value;
     const size = Number(document.getElementById("pick-size").value) || 0;
     const item = MENU_ITEMS[id];
-    const existing = draft.lines.find(function (l) { return l.id === id && l.size === size; });
+
+    // Items with choices: every dropdown must be picked first
+    const pickers = Array.from(document.querySelectorAll("#pick-choices select"));
+    const choices = pickers.length ? pickers.map(function (s) { return s.value; }) : null;
+    if (choices && choices.indexOf("") >= 0) {
+      pickers.forEach(function (s) { s.classList.toggle("missing", !s.value); });
+      toast("Pick every option for " + item.name + " first");
+      return;
+    }
+
+    // Same item + size + same picks -> one more; different picks -> its own line
+    const existing = draft.lines.find(function (l) {
+      return l.id === id && l.size === size && JSON.stringify(l.choices || null) === JSON.stringify(choices);
+    });
     if (existing && !item.unit) existing.qty += 1;
-    else if (!existing) draft.lines.push({ id: id, size: size, qty: item.unit ? item.min : 1, note: "" });
+    else if (!existing) {
+      const line = { id: id, size: size, qty: item.unit ? item.min : 1, note: "" };
+      if (choices) line.choices = choices;
+      draft.lines.push(line);
+    }
+    pickers.forEach(function (s) { s.value = ""; s.classList.remove("missing"); });
     refreshLinesAndTotals();
     toast("Added " + item.name);
   }
@@ -1108,7 +1152,10 @@ async function saveOrder() {
         id: line.id, name: item.name, size: line.size,
         size_label: item.unit ? null : item.sizes[line.size][0],
         qty: line.qty, unit_price: unitPrice, line_total: roundCents(unitPrice * line.qty),
-        label: cateringLineLabel(line), note: line.note
+        label: cateringLineLabel(line), note: line.note,
+        // Thanksgiving dinners: the picks, as a list and as readable text for the kitchen
+        choices: line.choices || null,
+        choices_text: line.choices ? choicesText(item, line.choices) : null
       };
     }) : (isInstore ? [] : groceryChecklist(draft.itemsText)),   // grocery: [{ text, picked }] for the in-basket checklist
     items_text: isCatering ? null : (isInstore ? bags + (bags === 1 ? " bag" : " bags") + " · shopped in store" : draft.itemsText.trim()),
