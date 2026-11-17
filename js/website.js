@@ -41,11 +41,18 @@ async function showWebsite() {
     return (
       '<li class="card flyer-card">' +
         (f.pages && f.pages[0] ? '<a href="' + esc(f.pages[0]) + '" target="_blank" rel="noopener"><img src="' + esc(f.pages[0]) + '" alt="" loading="lazy"></a>' : "") +
-        "<div>" +
+        '<div class="flyer-info">' +
           "<strong>" + esc(f.title) + "</strong>" + (f.kind === "holiday" ? " · " + esc(THEMES[f.theme] || "") : "") + "<br>" +
           "<small>" + esc(dateRange(f)) + " · " + (f.pages || []).length + " page" + ((f.pages || []).length === 1 ? "" : "s") + "</small><br>" +
           state +
-          '<br><button type="button" class="link-btn danger" data-action="delete-flyer" data-id="' + f.id + '">Delete</button>' +
+          // Weekly ads: the headline deals shown big on the homepage, editable any time
+          (f.kind === "weekly"
+            ? '<details class="headline-edit"><summary>Homepage deals' + (f.headline ? ": " + esc(f.headline.split("\n").length) + " line" + (f.headline.split("\n").length === 1 ? "" : "s") : ": none") + "</summary>" +
+                '<textarea rows="3" id="headline-' + f.id + '">' + esc(f.headline || "") + "</textarea>" +
+                '<button type="button" class="btn btn-small" data-action="save-headline" data-id="' + f.id + '">Save deals</button>' +
+              "</details>"
+            : "") +
+          '<button type="button" class="link-btn danger" data-action="delete-flyer" data-id="' + f.id + '">Delete</button>' +
         "</div>" +
       "</li>"
     );
@@ -66,6 +73,9 @@ async function showWebsite() {
           '<label>First day<input name="starts_on" type="date" value="' + today + '"></label>' +
           '<label>Last day<input name="ends_on" type="date" value="' + dateValue(addDays(new Date(), 6)) + '"></label>' +
         "</div>" +
+        '<label>Headline deals for the homepage <small>(optional, 1 to 3 lines)</small>' +
+          '<textarea name="headline" rows="3" placeholder="FREE whole turkey with $250 purchase&#10;FREE 40-pack of water with $125 purchase"></textarea></label>' +
+        '<p class="hint">The best offers, one per line. They show in big letters on the homepage while this ad is up.</p>' +
         '<p class="error" id="weekly-error" role="alert" hidden></p>' +
         '<button class="btn btn-primary btn-block" type="submit">Upload weekly ad</button>' +
       "</form>" +
@@ -92,6 +102,18 @@ async function showWebsite() {
     "</section>";
 
   view.onclick = async function (event) {
+    const save = event.target.closest('[data-action="save-headline"]');
+    if (save) {
+      try {
+        const id = Number(save.dataset.id);
+        await Store.updateFlyer(id, { headline: cleanHeadline(document.getElementById("headline-" + id).value) });
+        toast("Homepage deals saved");
+        route();
+      } catch (error) {
+        showError(error);
+      }
+      return;
+    }
     const button = event.target.closest('[data-action="delete-flyer"]');
     if (!button) return;
     const flyer = flyers.find(function (f) { return f.id === Number(button.dataset.id); });
@@ -133,6 +155,7 @@ async function showWebsite() {
         title: kind === "weekly" ? "Weekly Sales" : form.elements.title.value.trim() || "Holiday Menu",
         theme: kind === "weekly" ? "general" : form.elements.theme.value,
         note: kind === "holiday" ? (form.elements.note.value.trim() || null) : null,
+        headline: kind === "weekly" ? cleanHeadline(form.elements.headline.value) : null,
         starts_on: form.elements.starts_on.value || null,
         ends_on: form.elements.ends_on.value || null
       }, function (message) { button.textContent = message; });
@@ -146,6 +169,15 @@ async function showWebsite() {
       button.textContent = buttonText;
     }
   };
+}
+
+// Headline deals: trim each line, drop empty ones, keep at most 3 short lines
+function cleanHeadline(text) {
+  const lines = String(text || "").split("\n")
+    .map(function (line) { return line.trim().slice(0, 80); })
+    .filter(Boolean)
+    .slice(0, 3);
+  return lines.length ? lines.join("\n") : null;
 }
 
 // "2026-11-26" -> "Thu, Nov 26"

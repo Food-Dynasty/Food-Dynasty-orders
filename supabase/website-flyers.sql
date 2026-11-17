@@ -22,6 +22,7 @@ create table if not exists public.flyers (
   theme       text not null default 'general'      -- colors/decor on the holiday page
               check (theme in ('general', 'thanksgiving', 'christmas', 'easter', 'summer')),
   note        text,                                -- "Order by Nov 24. Pickup Nov 26-27."
+  headline    text,                                -- weekly ad: 1-3 big deals for the homepage, one per line
   pages       jsonb not null default '[]'::jsonb,  -- picture addresses, one per page
   pdf_url     text,                                -- the original PDF, if one was uploaded
   starts_on   date,                                -- blank = show right away
@@ -29,6 +30,9 @@ create table if not exists public.flyers (
   created_by  uuid default auth.uid(),
   created_at  timestamptz not null default now()
 );
+
+-- (added later: for databases created before the headline column existed)
+alter table public.flyers add column if not exists headline text;
 
 create index if not exists flyers_kind_idx on public.flyers (kind, created_at desc);
 

@@ -169,6 +169,15 @@ const DemoStore = {
     return row;
   },
 
+  async updateFlyer(id, changes) {
+    const list = this._read("fd-app-flyers");
+    const flyer = list.find(function (f) { return f.id === id; });
+    if (!flyer) throw new Error("Flyer not found.");
+    Object.assign(flyer, changes);
+    this._write("fd-app-flyers", list);
+    return flyer;
+  },
+
   async deleteFlyer(flyer) {
     this._write("fd-app-flyers", this._read("fd-app-flyers").filter(function (f) { return f.id !== flyer.id; }));
   }
@@ -298,6 +307,10 @@ const CloudStore = {
 
   async createFlyer(flyer) {
     return unwrap(await this.client.from("flyers").insert(flyer).select().single());
+  },
+
+  async updateFlyer(id, changes) {
+    return unwrap(await this.client.from("flyers").update(changes).eq("id", id).select().single());
   },
 
   // Deletes the row AND its files, so old flyers don't pile up in storage

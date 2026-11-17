@@ -535,6 +535,26 @@ textarea {
   margin-top: 6px;
 }
 
+.flyer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.headline-edit {
+  margin: 8px 0 4px;
+}
+
+.headline-edit summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.headline-edit textarea {
+  width: 100%;
+  margin: 6px 0;
+}
+
 .mini-steps {
   margin: 6px 0 0;
   padding-left: 20px;
