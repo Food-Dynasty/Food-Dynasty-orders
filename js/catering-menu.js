@@ -61,8 +61,9 @@ const TG_VEGETABLE = ["Broccoli Oreganata", "Stuffed Mushrooms", "String Beans",
 const TG_POTATO_FULL = ["Mashed Potato", "Roasted Potatoes", "Potato Seasoned Wedges", "Candied Yams",
                         "Buttery Mashed", "Garlic Mashed", "Caramelized Onion", "Sweet Potato"];
 const TG_POTATO_HALF = TG_POTATO_FULL.concat(["Rosemary Potatoes"]);
-// TODO: confirm the pie flavors with the store (the printed ad doesn't list them)
-const TG_PIE = ["Apple", "Pumpkin", "Sweet Potato"];
+// Pie flavors from the store, most popular first
+const TG_PIE = ["Pumpkin Pie", "Apple Pie", "Pecan Pie", "Apple Crumb Pie", "Cherry Pie",
+                "Pumpkin Spice Pie", "Blueberry Pie", "Cranberry Pie"];
 
 // One entry per dropdown: a "Pie" choice with count 2 becomes "Pie 1" and "Pie 2"
 function choiceSlots(item) {
