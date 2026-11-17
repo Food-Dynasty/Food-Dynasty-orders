@@ -556,7 +556,7 @@ function customerCopyHTML(o, balance) {
         '<div class="cc-store">' +
           "<strong>Food Dynasty Supermarket</strong><br>" +
           "1071 Bay St, Staten Island, NY 10305<br>" +
-          "(718) 816-1100 · food-dynasty.github.io/Food-Dynasty-Website" +
+          "(718) 816-1100 · fooddynastymarket.com" +
         "</div>" +
       "</header>" +
 
