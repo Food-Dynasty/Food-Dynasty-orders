@@ -52,6 +52,11 @@ async function showWebsite() {
                 '<button type="button" class="btn btn-small" data-action="save-headline" data-id="' + f.id + '">Save deals</button>' +
               "</details>"
             : "") +
+          // Holiday menus: the on/off switch for the big holiday section on the homepage
+          (f.kind === "holiday"
+            ? '<label class="feature-switch"><input type="checkbox" data-action="toggle-featured" data-id="' + f.id + '"' +
+                (f.featured !== false ? " checked" : "") + "> Feature on homepage</label>"
+            : "") +
           '<button type="button" class="link-btn danger" data-action="delete-flyer" data-id="' + f.id + '">Delete</button>' +
         "</div>" +
       "</li>"
@@ -95,6 +100,7 @@ async function showWebsite() {
           '<label>Show from<input name="starts_on" type="date" value="' + today + '"></label>' +
           '<label>Show until<input name="ends_on" type="date"></label>' +
         "</div>" +
+        '<label class="feature-switch"><input type="checkbox" name="featured" checked> Feature on homepage <small>(big holiday section under the store photo)</small></label>' +
         '<p class="error" id="holiday-error" role="alert" hidden></p>' +
         '<button class="btn btn-primary btn-block" type="submit">Upload holiday menu</button>' +
       "</form>" +
@@ -127,7 +133,19 @@ async function showWebsite() {
     }
   };
   view.oninput = null;
-  view.onchange = function (event) {
+  view.onchange = async function (event) {
+    // "Feature on homepage" switch on a holiday menu: saves right away
+    if (event.target.dataset.action === "toggle-featured") {
+      const box = event.target;
+      try {
+        await Store.updateFlyer(Number(box.dataset.id), { featured: box.checked });
+        toast(box.checked ? "Now featured on the homepage" : "Removed from the homepage");
+      } catch (error) {
+        box.checked = !box.checked;   // saving failed: put the switch back
+        showError(error);
+      }
+      return;
+    }
     // Picking a look fills in a matching title (if the title hasn't been typed yet)
     if (event.target.name === "theme") {
       const titles = { thanksgiving: "Thanksgiving Dinner", christmas: "Christmas Dinner", easter: "Easter Dinner", summer: "Summer Cookout", general: "Holiday Menu" };
@@ -156,6 +174,7 @@ async function showWebsite() {
         theme: kind === "weekly" ? "general" : form.elements.theme.value,
         note: kind === "holiday" ? (form.elements.note.value.trim() || null) : null,
         headline: kind === "weekly" ? cleanHeadline(form.elements.headline.value) : null,
+        featured: kind === "holiday" ? form.elements.featured.checked : true,
         starts_on: form.elements.starts_on.value || null,
         ends_on: form.elements.ends_on.value || null
       }, function (message) { button.textContent = message; });

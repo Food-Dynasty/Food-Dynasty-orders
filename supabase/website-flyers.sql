@@ -31,8 +31,10 @@ create table if not exists public.flyers (
   created_at  timestamptz not null default now()
 );
 
--- (added later: for databases created before the headline column existed)
+-- (added later: for databases created before these columns existed)
 alter table public.flyers add column if not exists headline text;
+-- holiday menus: show the big holiday section on the homepage (the on/off switch)
+alter table public.flyers add column if not exists featured boolean not null default true;
 
 create index if not exists flyers_kind_idx on public.flyers (kind, created_at desc);
 
