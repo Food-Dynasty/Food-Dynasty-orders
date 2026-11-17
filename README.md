@@ -2,7 +2,7 @@
 
 A phone-friendly staff app for **Food Dynasty Supermarket** (Staten Island, NY). It replaces paper slips and phone notes for catering orders, grocery deliveries and website orders, and lets staff update the store's website without touching code.
 
-**Live app (staff login required):** https://food-dynasty.github.io/Food-Dynasty-orders/
+**Live app (staff login required):** https://orders.fooddynastymarket.com
 **Public website:** [Food-Dynasty-Website](https://github.com/Food-Dynasty/Food-Dynasty-Website)
 
 ## What staff can do
