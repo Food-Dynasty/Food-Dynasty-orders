@@ -1,15 +1,6 @@
-/*
-  ICONS: simple line drawings used instead of emojis
-  --------------------------------------------------
-  Emojis look different on every phone (Apple, Samsung, Windows...) and can feel
-  playful. These icons are tiny SVG drawings: they look the same everywhere, take
-  the text color around them, and scale with the text size.
-
-  Use in JavaScript:  icon("truck") + " Delivery"
-  Use in HTML:        <span data-icon="orders"></span>  (filled in when the app starts)
-
-  Each icon is a list of SVG shapes drawn on a 24 x 24 grid with a 2px outline.
-*/
+/**
+ * Inline SVG line icons (24x24, stroke-based) used across the app.
+ */
 "use strict";
 
 const ICONS = {

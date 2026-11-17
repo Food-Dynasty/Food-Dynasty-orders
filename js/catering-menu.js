@@ -1,40 +1,12 @@
-/*
-  CATERING MENU DATA
-  ------------------
-  Every catering item and price lives here, in ONE place, as plain JavaScript data.
-  The order page (order.html + js/order.js) builds itself from this list.
-  To change a price or add a dish, edit this file only.
-
-  (The catering.html page is still written by hand. If you change a price here,
-  change it there too. A future version could build both pages from this file.)
-
-  How a category is described:
-    id     a short code, used in links and as part of each item's ID
-    name   what customers see
-    note   small text under the category name (optional)
-    sizes  the size/price options shared by every item in the category, as
-           [label, price] pairs, e.g. [["Half tray", 50], ["Full tray", 80]]
-    items  the dishes. A dish can be:
-           - just a name ("Baked Ziti"): it uses the category's sizes
-           - an object with its OWN sizes: { name, sizes: [[...], [...]] }
-           - an object priced PER UNIT: { name, unit: "person", price: 15, min: 20 }
-             (the customer types how many people / feet, starting at the minimum)
-           Any object can also have a "hint": extra info shown under the name.
-
-  Prices come from the store's printed catering menu. Confirm with the store
-  before taking real orders.
-*/
-
-// Small helper so platters with small/large prices are short to write:
-// platter("Chicken Wings", 60, 100) -> { name: "Chicken Wings", sizes: [["Small", 60], ["Large", 100]] }
+/**
+ * Catering menu data shared by the website order page and the FD Orders app.
+ * Items use category sizes ([label, price]), their own sizes, per-unit pricing,
+ * or required choices (Thanksgiving dinners). Keep both copies identical.
+ */
 function platter(name, small, large) {
   return { name: name, sizes: [["Small", small], ["Large", large]] };
 }
 
-// SEASONAL CATEGORIES: a category with season: "thanksgiving" only shows on the
-// website's order page from Nov 1 until 3 days before Thanksgiving (orders need
-// 3 days' notice). Thanksgiving is the 4th Thursday of November, so the dates
-// move every year on their own. The staff app always shows every category.
 function thanksgivingDate(year) {
   const nov1 = new Date(year, 10, 1);                  // months count from 0: 10 = November
   const firstThursday = 1 + ((4 - nov1.getDay() + 7) % 7);
@@ -49,11 +21,6 @@ function categoryInSeason(category, today) {
   return day >= new Date(day.getFullYear(), 10, 1) && day <= new Date(lastOrderDay.getFullYear(), lastOrderDay.getMonth(), lastOrderDay.getDate(), 23, 59);
 }
 
-// CHOICES: some items make the customer pick options (like a Thanksgiving package:
-// 1 stuffing, 1 pasta, 1 vegetable, 1 potato, pies). Written on an item as
-//   choices: [{ name: "Stuffing", options: [...] }, { name: "Pie", count: 2, options: [...] }]
-// count = how many to pick from that list (default 1). The order page and the staff
-// app show one dropdown per pick, and an item can't be added until all are picked.
 const TG_STUFFING = ["Traditional Vegetable", "Sausage Stuffing", "Cranberry & Vegetables"];
 const TG_PASTA = ["Baked Ziti", "Penne Vodka", "Penne Alfredo", "Mac & Cheese"];
 const TG_VEGETABLE = ["Broccoli Oreganata", "Stuffed Mushrooms", "String Beans", "Grilled Vegetables"];
@@ -77,7 +44,6 @@ function choiceSlots(item) {
   return slots;
 }
 
-// ["Sausage Stuffing", "Baked Ziti", ...] -> "Stuffing: Sausage Stuffing · Pasta: Baked Ziti · ..."
 function choicesText(item, picks) {
   return choiceSlots(item).map(function (slot, i) {
     return slot.label + ": " + ((picks || [])[i] || "?");

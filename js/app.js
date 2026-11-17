@@ -1,23 +1,8 @@
-/*
-  FOOD DYNASTY ORDERS: THE APP (screens and what happens when you tap things)
-  ---------------------------------------------------------------------------
-  Sections:
-    1. Helpers (money, dates, phone numbers, safe HTML)
-    2. Catering menu lookup
-    3. Router: shows the right screen for the address after "#"
-    4. Screen: Orders list
-    5. Screen: Order details (status, print, reorder)
-    6. Screen: New order (customer, type, items, totals, save)
-    7. Screens: Customers list + one customer
-    8. Screen: Sign in
-    9. Start-up
-
-  Pattern used everywhere: each screen is a function that builds HTML as text,
-  puts it in <main id="view">, and then reacts to taps with "event delegation"
-  (one listener on the whole view that checks data-action="..." on the tapped thing).
-*/
+/**
+ * FD Orders staff app: hash-based router, screens (orders, order detail, new order,
+ * customers, sign-in) and polling for new website orders.
+ */
 "use strict";
-
 
 /* ============ 1. HELPERS ============ */
 
@@ -32,7 +17,7 @@ function roundCents(amount) {
   return Math.round(amount * 100) / 100;
 }
 
-// Makes typed text safe to put inside HTML (stops <script> tricks)
+// Escape text for safe insertion into HTML
 function esc(text) {
   return String(text == null ? "" : text).replace(/[&<>"']/g, function (ch) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
@@ -110,10 +95,6 @@ const STATUS_LABEL = {
   cancelled: "Cancelled"
 };
 
-// The next step for the big "status" button.
-// Deliveries go straight from Preparing to Completed (no "out for delivery" step).
-// Pickups get a "Ready for pickup" step so the counter knows it's waiting.
-// ("out_for_delivery" stays in STATUS_LABEL so older orders still display correctly.)
 function nextStatus(order) {
   const flow = order.fulfillment === "delivery"
     ? ["new", "preparing", "completed"]
@@ -131,9 +112,6 @@ function badges(order) {
          (order.status !== "cancelled" && amountOwed(order) > 0 ? '<span class="badge badge-unpaid">Unpaid</span>' : "");
 }
 
-// How much is still owed on an order.
-//   Grocery: the whole total until a payment method other than "Not paid yet" is chosen.
-//   Catering: total minus the deposit/payments recorded.
 function amountOwed(order) {
   if (order.kind === "grocery") {
     const paid = order.payment_method && order.payment_method !== "Not paid yet";
@@ -141,7 +119,6 @@ function amountOwed(order) {
   }
   return Math.max(0, roundCents(Number(order.total) - Number(order.deposit_paid || 0)));
 }
-
 
 /* ============ 2. CATERING MENU LOOKUP ============ */
 // Same idea as the website: give every menu item an ID and fill in its sizes.
@@ -174,7 +151,6 @@ function cateringLineLabel(line) {
   if (item.unit) return item.name + " · " + line.qty + " " + (item.unit === "person" ? "people" : "ft");
   return line.qty + " × " + item.name + " (" + item.sizes[line.size][0] + ")";
 }
-
 
 /* ============ 3. ROUTER ============ */
 // Reads the part of the address after "#" (like "#/order/12") and shows that screen.
@@ -219,7 +195,6 @@ async function route() {
 }
 
 window.addEventListener("hashchange", route);
-
 
 /* ============ 4. SCREEN: ORDERS LIST ============ */
 
@@ -270,7 +245,6 @@ function orderCardHTML(o) {
   );
 }
 
-
 /* ============ 5. SCREEN: ONE ORDER ============ */
 
 async function showOrder(id) {
@@ -283,8 +257,6 @@ async function showOrder(id) {
   const next = nextStatus(o);
   const balance = roundCents(Number(o.total) - Number(o.deposit_paid || 0));
 
-  // Grocery orders: the shopping list as a tap-to-check list.
-  // Older orders saved before the checklist existed only have items_text, so build it from that.
   const checklist = o.kind === "grocery"
     ? (Array.isArray(o.items) ? o.items : groceryChecklist(o.items_text))
     : null;
@@ -332,8 +304,6 @@ async function showOrder(id) {
     // The customer's copy: hidden on screen, only shown when printing it (see printCopy)
     (o.kind === "catering" ? customerCopyHTML(o, balance) : "") +
 
-    // Action buttons (not printed)
-    // ONLINE ORDERS: reminder to call, plus a price check against the real menu
     (o.source === "online" ? onlinePanelHTML(o) : "") +
 
     // PAYMENT: change it any time, e.g. a "Not paid yet" order paid at the door
@@ -392,9 +362,6 @@ function row(label, value, extraClass) {
 
 /* ---------- Online orders (sent from the website) ---------- */
 
-// The website calculates its own prices in the customer's browser, which someone
-// could tamper with. So for every online catering line we recalculate the price
-// from OUR menu file and list anything that doesn't match.
 function priceProblems(order) {
   const problems = [];
   (order.items || []).forEach(function (line) {
@@ -444,8 +411,6 @@ function onlinePanelHTML(o) {
 const PAY_METHODS = ["Cash", "Card", "EBT"];
 
 function paymentPanelHTML(o) {
-  // Grocery order without a total yet (sent from the website): ask for it first.
-  // (In-store deliveries were rung up already, so the total is optional for them.)
   if (o.kind === "grocery" && o.source !== "instore" && !(Number(o.total) > 0)) {
     return (
       '<div class="panel no-print"><h2>Register total</h2>' +
@@ -482,7 +447,6 @@ function paymentPanelHTML(o) {
   );
 }
 
-// Saves a grocery order's register total (subtotal = total: the register already added any tax)
 async function saveRegisterTotal(order, value) {
   const total = roundCents(Number(value));
   if (!(total > 0)) throw new Error("Enter the register total, for example 64.20");
@@ -492,8 +456,6 @@ async function saveRegisterTotal(order, value) {
   route();
 }
 
-// Grocery: just record the method. Catering: paying means the balance is settled,
-// so the amount paid becomes the full total.
 async function recordPayment(order, method) {
   const changes = { payment_method: method };
   if (order.kind === "catering") {
@@ -515,8 +477,6 @@ async function recordPayment(order, method) {
 
 /* ---------- Grocery checklist ("in the basket") ---------- */
 
-// Typed list -> checklist. One line = one item. Empty lines are skipped, and bullet
-// characters people often type at the start ("-", "*", "•", "1.") are removed.
 function groceryChecklist(text) {
   return String(text || "")
     .split("\n")
@@ -536,8 +496,6 @@ function checklistHTML(list) {
     '<p class="pick-progress" id="pick-progress">' + checklistProgress(list) + "</p>" +
     '<ul class="checklist">' +
       list.map(function (item, i) {
-        // A <button> (not a checkbox) so the WHOLE row is a big target for thumbs.
-        // aria-pressed tells screen readers whether it's checked.
         return '<li><button type="button" class="check-item' + (item.picked ? " picked" : "") +
                '" data-action="pick" data-index="' + i + '" aria-pressed="' + item.picked + '">' +
                '<span class="box" aria-hidden="true">' + (item.picked ? "✓" : "") + "</span>" +
@@ -547,9 +505,6 @@ function checklistHTML(list) {
   );
 }
 
-// Tapping an item: update the screen right away, then save to the database.
-// (Updating first and saving after is called an "optimistic update": the app feels
-// instant. If saving fails, we undo the change on screen and show the error.)
 async function togglePicked(order, list, index, button) {
   const item = list[index];
   item.picked = !item.picked;
@@ -579,11 +534,6 @@ async function togglePicked(order, list, index, button) {
   }
 }
 
-// PRINTING TWO DIFFERENT COPIES FROM ONE PAGE
-// The page holds both the kitchen view (.print-area) and the customer copy (.customer-copy).
-// Before printing we put data-print="kitchen" or "customer" on <body>; the print CSS
-// (bottom of css/app.css) uses it to show only the matching copy. After the print
-// dialog closes, the "afterprint" event removes it again.
 function printCopy(which) {
   document.body.dataset.print = which || "kitchen";
   window.addEventListener("afterprint", function cleanup() {
@@ -593,8 +543,6 @@ function printCopy(which) {
   window.print();
 }
 
-// The customer's copy of a catering order: logo, store info, what they ordered,
-// money owed, and the ordering policies. Plain and printer-friendly.
 function customerCopyHTML(o, balance) {
   const c = o.customer || {};
   const isDelivery = o.fulfillment === "delivery";
@@ -656,7 +604,6 @@ function customerCopyHTML(o, balance) {
   );
 }
 
-
 /* ============ 6. SCREEN: NEW ORDER ============ */
 
 // The order being built. Kept outside the screen so it survives switching tabs.
@@ -673,7 +620,7 @@ function emptyDraft() {
   const soon = nextHalfHour();
   return {
     customer: null,
-    kind: null,            // "grocery", "catering" or "instore" (shopped in store, we deliver)
+    kind: null,
     bags: "",              // in-store delivery: how many bags
     fulfillment: "delivery",
     lines: [],             // catering: [{ id, size, qty, note }]
@@ -752,8 +699,6 @@ function showNewOrder() {
             choiceButton("kind", "catering", icon("utensils") + " Catering", draft.kind) +
             choiceButton("kind", "instore", icon("bag") + " In-store delivery", draft.kind) +
           "</div>" +
-          // Catering can be pickup or delivery. Phone grocery orders are always
-          // delivery (free over the $50 minimum), so there's no choice to make.
           (draft.kind === "catering"
             ? '<div class="choice-row">' +
                 choiceButton("fulfillment", "delivery", icon("truck") + " Delivery", draft.fulfillment) +
@@ -951,8 +896,6 @@ function fillSizeSelect() {
   fillChoicePicks(item);
 }
 
-// Items with choices (Thanksgiving dinners): a dropdown per pick, starting on "Choose…"
-// (choiceSlots comes from js/catering-menu.js, shared with the website)
 function fillChoicePicks(item) {
   document.getElementById("pick-choices").innerHTML = choiceSlots(item).map(function (slot, i) {
     return '<label>' + esc(slot.label) + '<select data-slot="' + i + '">' +
@@ -1060,8 +1003,6 @@ let searchTimer = null;
 function handleNewOrderInput(event) {
   const el = event.target;
   if (el.id === "cust-search") {
-    // Wait until typing pauses for 250ms before searching ("debouncing"),
-    // so we don't ask the database on every single keystroke.
     clearTimeout(searchTimer);
     searchTimer = setTimeout(function () {
       searchCustomers(el.value).catch(showError);
@@ -1096,7 +1037,7 @@ async function handleNewOrderSubmit(event) {
   const form = event.target;
   try {
     if (form.id === "customer-form") {
-      const data = Object.fromEntries(new FormData(form));   // all fields -> { name: "...", phone: "...", ... }
+      const data = Object.fromEntries(new FormData(form));
       if (!data.name.trim()) throw new Error("Please enter the customer's name.");
       if (digitsOnly(data.phone).length < 10) throw new Error("Please enter a 10-digit phone number.");
       const saved = await Store.saveCustomer(data);
@@ -1143,8 +1084,6 @@ async function saveOrder() {
     source: isInstore ? "instore" : "staff",
     fulfillment: draft.fulfillment,
     due_at: toISO(draft.date, draft.time),
-    // Catering lines are saved with their name and price AT THE TIME OF ORDER,
-    // so old orders still show what was charged even if the menu changes later.
     items: isCatering ? draft.lines.map(function (line) {
       const item = MENU_ITEMS[line.id];
       const unitPrice = cateringUnitPrice(line);
@@ -1157,7 +1096,7 @@ async function saveOrder() {
         choices: line.choices || null,
         choices_text: line.choices ? choicesText(item, line.choices) : null
       };
-    }) : (isInstore ? [] : groceryChecklist(draft.itemsText)),   // grocery: [{ text, picked }] for the in-basket checklist
+    }) : (isInstore ? [] : groceryChecklist(draft.itemsText)),
     items_text: isCatering ? null : (isInstore ? bags + (bags === 1 ? " bag" : " bags") + " · shopped in store" : draft.itemsText.trim()),
     subtotal: t.subtotal,
     delivery_fee: t.fee,
@@ -1180,7 +1119,6 @@ async function saveOrder() {
   toast("Order #" + saved.id + " saved");
   location.hash = "#/order/" + saved.id;
 }
-
 
 /* ============ 7. SCREENS: CUSTOMERS ============ */
 
@@ -1273,7 +1211,6 @@ async function showCustomer(id) {
   };
 }
 
-
 /* ============ 8. SCREEN: SIGN IN ============ */
 
 function showLogin() {
@@ -1297,7 +1234,7 @@ function showLogin() {
     try {
       currentUser = await Store.signIn(form.email.value.trim(), form.password.value);
       updateHeader();
-      checkOnlineOrders();   // start counting website orders right after signing in
+      checkOnlineOrders();
       location.hash = "#/orders";
     } catch (error) {
       const box = document.getElementById("login-error");
@@ -1314,15 +1251,11 @@ function updateHeader() {
   document.getElementById("sign-out").hidden = !(IS_CLOUD && currentUser);
 }
 
-
 /* ============ 8b. LIVE ALERTS FOR WEBSITE ORDERS ============ */
-// While the app is open, it checks for new website orders every 15 seconds.
-// A brand-new one triggers: a banner at the top, a two-tone chime, a vibration
-// (on phones that support it), and a count on the Orders tab.
 
 const CHECK_EVERY_MS = 15000;
 let onlineWaiting = [];        // website orders still "new" (not confirmed yet)
-let knownOnlineIds = null;     // order numbers we've already seen (null = first check)
+let knownOnlineIds = null;
 let checking = false;          // stops two checks from running at the same time
 
 async function checkOnlineOrders() {
@@ -1333,8 +1266,6 @@ async function checkOnlineOrders() {
     onlineWaiting = list;
     updateOnlineBadge();
 
-    // The first check after opening the app only remembers what's already there;
-    // after that, anything we haven't seen before is NEW and gets announced.
     if (knownOnlineIds !== null) {
       const fresh = list.filter(function (o) { return !knownOnlineIds.has(o.id); });
       if (fresh.length) announce(fresh[fresh.length - 1], fresh.length);
@@ -1371,9 +1302,6 @@ function announce(order, count) {
   if ((location.hash || "#/orders").indexOf("#/orders") === 0) route();
 }
 
-// A two-note chime made with the Web Audio API (no sound file needed).
-// Browsers only allow sound after someone has tapped the page once, so the audio
-// is "unlocked" on the first tap after the app opens.
 let audio = null;
 function unlockAudio() {
   try {
@@ -1400,7 +1328,6 @@ function chime() {
   });
 }
 
-
 /* ============ 9. START-UP ============ */
 
 (async function start() {
@@ -1420,9 +1347,6 @@ function chime() {
   }
   updateHeader();
 
-  // Live alerts: unlock sound on the first tap, hide the banner when it's tapped,
-  // check right away, then every 15 seconds, and again whenever the app comes
-  // back to the front (e.g. after switching apps on a phone).
   document.addEventListener("pointerdown", unlockAudio);
   document.getElementById("alert-link").addEventListener("click", function () {
     document.getElementById("alert-banner").hidden = true;

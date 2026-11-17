@@ -1,16 +1,7 @@
-/*
-  WEBSITE SCREEN (#/website): put the weekly sales ad and holiday menus on the public site
-  ---------------------------------------------------------------------------------------
-  Staff pick a PDF or pictures; this screen:
-    1. turns each PDF page into a picture (with pdf.js, a free library from Mozilla),
-       because pictures show well on every phone while PDFs often don't,
-    2. shrinks big photos so the website stays fast,
-    3. uploads the pictures (and the original PDF) to the "flyers" storage bucket,
-    4. saves a row in the "flyers" table that the website reads.
-
-  The website always shows the NEWEST flyer of each kind whose dates include today.
-  Uses helpers from js/app.js (view, esc, toast, showError, route, dateValue, addDays).
-*/
+/**
+ * Website tab: uploads the weekly ad and holiday menus. PDF pages are rendered to
+ * JPEG with pdf.js, photos are resized, and files go to the Supabase "flyers" bucket.
+ */
 "use strict";
 
 const THEMES = {
@@ -243,8 +234,6 @@ function dealsSummary(f) {
   return parts.length ? parts.join(" · ") : "none";
 }
 
-// Uploads deal pictures for a weekly ad (shrunk like the ad pages) and adds them to it.
-// At most 4 in total, so the homepage stays tidy.
 const MAX_DEAL_IMAGES = 4;
 async function addDealImages(flyer, files, progress) {
   const current = flyer.deal_images || [];
@@ -285,8 +274,6 @@ function dateRange(f) {
   return "No end date";
 }
 
-// Turns the chosen files into pictures, uploads everything, and saves the flyer row.
-// progress("Uploading 2 of 3…") updates the button text so staff know it's working.
 async function uploadFlyer(files, details, progress) {
   const folder = details.kind + "/" + dateValue(new Date()) + "-" + Math.random().toString(36).slice(2, 8);
   const pictures = [];

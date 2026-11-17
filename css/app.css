@@ -1,9 +1,6 @@
-/*
-  FOOD DYNASTY ORDERS: STYLES
-  Built for phones first: big tap targets (at least 44px tall), one column,
-  and a tab bar at the bottom where thumbs can reach it.
-*/
-
+/**
+ * FD Orders styles: mobile-first layout, tab bar, forms, order views and print styles.
+ */
 :root {
   --yellow: #ffd100;
   --yellow-dark: #e6bc00;
@@ -148,8 +145,6 @@ small,
   padding: 4px 8px;
 }
 
-/* Slides down from under the header. Only movement, no fading: if a device
-   ever skips the animation, the banner is still fully visible. */
 @keyframes alert-in {
   from {
     transform: translateY(-100%);
@@ -269,7 +264,7 @@ textarea {
   width: 100%;
   margin-top: 4px;
   font: inherit;
-  font-size: 1rem;   /* 16px+ stops iPhones from zooming in when you tap a field */
+  font-size: 1rem;
   padding: 10px 12px;
   min-height: 44px;
   border: 1px solid #c9c9c9;
@@ -282,13 +277,11 @@ textarea {
   resize: vertical;
 }
 
-/* .stack = space out every field in a form evenly */
+/* Even spacing between form fields */
 .stack > * + * {
   margin-top: 12px;
 }
 
-/* minmax(0, 1fr) instead of 1fr: date fields have a built-in minimum width that
-   would otherwise push the columns wider than a small phone screen */
 .two-col {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -740,7 +733,7 @@ textarea {
   align-items: center;
   gap: 12px;
   width: 100%;
-  min-height: 52px;          /* big enough to tap with a thumb while holding a basket */
+  min-height: 52px;
   padding: 10px 12px;
   margin-bottom: 6px;
   font: inherit;
@@ -1001,7 +994,6 @@ textarea {
   margin: 0;
 }
 
-/* <table> = rows and columns, the right tool for a list of items with prices */
 .cc-items {
   width: 100%;
   border-collapse: collapse;   /* single lines between cells instead of double */
@@ -1050,9 +1042,6 @@ textarea {
   margin-top: 18px;
 }
 
-/* ---------- Printing ----------
-   body[data-print="customer"] -> print ONLY the customer copy
-   anything else (kitchen)     -> print the order details, never the customer copy */
 @media print {
   .app-header, .demo-banner, .tabbar, .toast, .no-print, .back {
     display: none !important;

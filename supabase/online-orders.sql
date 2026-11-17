@@ -1,20 +1,10 @@
--- =====================================================================
--- ONLINE CATERING ORDERS -> FD ORDERS
--- Run this ONCE in Supabase: SQL Editor -> New query -> paste -> Run.
---
--- The public website is NOT signed in, so it has no access to the tables
--- (see schema.sql). Instead it gets ONE door: the function below.
--- The function runs with the database owner's rights ("security definer"),
--- checks everything the website sends, and can only ADD a new catering order.
--- It cannot read, change or delete anything.
--- =====================================================================
-
+-- Catering orders from the website (submit_online_order RPC).
+-- Insert-only, validated, max 5 orders per phone per day. Requires schema.sql.
 
 -- Mark where each order came from: taken by staff, or sent from the website
 alter table public.orders
   add column if not exists source text not null default 'staff'
   check (source in ('staff', 'online'));
-
 
 create or replace function public.submit_online_order(payload jsonb)
 returns bigint                      -- the new order number
@@ -80,8 +70,6 @@ begin
   end if;
 
   -- ---------- save the order ----------
-  -- Money values are kept within sane limits; staff confirm prices by phone,
-  -- and the FD Orders app re-checks every line against the menu.
   insert into orders (
     customer_id, kind, fulfillment, status, due_at, items,
     subtotal, delivery_fee, tax, total, deposit_paid, payment_method,

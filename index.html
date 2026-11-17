@@ -1,27 +1,12 @@
 <!DOCTYPE html>
-<!--
-  FOOD DYNASTY ORDERS: staff app for taking orders in the store and over the phone.
-
-  This is a "single-page app": there's only ONE HTML page. JavaScript (js/app.js)
-  swaps what's shown inside <main id="view"> depending on the address after the #:
-    #/orders           today's / upcoming orders (home screen)
-    #/new              take a new order
-    #/order/12         one order's details
-    #/customers        customer list and search
-    #/customer/<id>    one customer, with their order history
-    #/website          upload the weekly sales ad and holiday menus (js/website.js)
-    #/login            staff sign-in (only when connected to the cloud database)
--->
 <html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Food Dynasty Orders</title>
-
   <!-- Staff-only tool: keep it out of Google -->
   <meta name="robots" content="noindex, nofollow">
-
   <!-- "Add to Home Screen" support: name, icon and colors for the installed app -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#111111">
@@ -29,14 +14,10 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="FD Orders">
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="css/app.css?v=20261116i">
-
-  <!-- Scripts run in this order (defer keeps the order and waits for the page):
-       1. Supabase library  2. settings  3. catering menu  4. data layer  5. the app -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.js" defer></script>
   <script src="js/config.js?v=20261116i" defer></script>
   <script src="js/icons.js?v=20261116i" defer></script>
@@ -58,8 +39,6 @@
     </div>
   </header>
 
-  <!-- New website order alert (shown by js/app.js, section 8b).
-       role="alert" makes screen readers announce it right away. -->
   <div class="alert-banner" id="alert-banner" role="alert" hidden>
     <a id="alert-link" href="#/orders/online"><span data-icon="bell"></span> <span id="alert-text"></span> <strong>Open ›</strong></a>
     <button type="button" id="alert-close" aria-label="Dismiss alert">✕</button>
@@ -75,10 +54,10 @@
     <noscript><p>This app needs JavaScript turned on.</p></noscript>
   </main>
 
-  <!-- Bottom tab bar, like a phone app -->
+  <!-- Bottom tab bar -->
   <nav class="tabbar" id="tabbar" aria-label="App sections">
     <!-- The red bubble counts website orders waiting to be confirmed -->
-    <!-- data-icon="...": js/icons.js puts the matching line icon in each <span> -->
+    <!-- Icons are filled in by js/icons.js -->
     <a href="#/orders" data-tab="orders"><span data-icon="orders"></span>Orders<b class="tab-badge" id="online-badge" hidden>0</b></a>
     <a href="#/new" data-tab="new" class="tab-new"><span data-icon="plus"></span>New order</a>
     <a href="#/customers" data-tab="customers"><span data-icon="users"></span>Customers</a>

@@ -1,18 +1,5 @@
--- =====================================================================
--- WEBSITE FLYERS (weekly sales + holiday menus) AND IN-STORE DELIVERIES
--- Run this ONCE in Supabase: SQL Editor -> New query -> paste -> Run.
--- (Needs schema.sql and online-orders.sql to have been run first.)
---
--- 1. A "flyers" table: one row per uploaded flyer (this week's sales, the
---    Thanksgiving menu, the Christmas menu...). Staff add them in FD Orders
---    (Website tab); the public website reads them.
--- 2. A "flyers" storage bucket: where the flyer pictures and PDFs are kept.
---    Anyone can VIEW the files (they're on the public website anyway), but only
---    signed-in staff can upload or delete.
--- 3. Orders get a new source, 'instore': a customer shopped in the store and
---    we deliver the bags to their home.
--- =====================================================================
-
+-- Website flyers (weekly ad, holiday menus): flyers table, public storage bucket with
+-- staff-only writes, and the 'instore' order source. Requires the files above.
 
 -- ---------- 1. THE FLYERS TABLE ----------
 create table if not exists public.flyers (
@@ -22,7 +9,7 @@ create table if not exists public.flyers (
   theme       text not null default 'general'      -- colors/decor on the holiday page
               check (theme in ('general', 'thanksgiving', 'christmas', 'easter', 'summer')),
   note        text,                                -- "Order by Nov 24. Pickup Nov 26-27."
-  headline    text,                                -- weekly ad: 1-3 big deals for the homepage, one per line
+  headline    text,
   pages       jsonb not null default '[]'::jsonb,  -- picture addresses, one per page
   pdf_url     text,                                -- the original PDF, if one was uploaded
   starts_on   date,                                -- blank = show right away
@@ -59,9 +46,7 @@ grant usage, select on all sequences in schema public to authenticated;
 grant select on public.flyers to anon;
 revoke insert, update, delete on public.flyers from anon;
 
-
 -- ---------- 2. THE FILE STORAGE BUCKET ----------
--- public = true: files can be viewed by address. 15 MB limit per file.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('flyers', 'flyers', true, 15728640,
         array['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
@@ -86,7 +71,6 @@ create policy "staff delete flyers" on storage.objects
 drop policy if exists "staff list flyers" on storage.objects;
 create policy "staff list flyers" on storage.objects
   for select to authenticated using (bucket_id = 'flyers');
-
 
 -- ---------- 3. IN-STORE DELIVERIES ----------
 alter table public.orders drop constraint if exists orders_source_check;

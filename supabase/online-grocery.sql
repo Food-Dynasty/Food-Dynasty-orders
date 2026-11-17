@@ -1,13 +1,5 @@
--- =====================================================================
--- ONLINE GROCERY LISTS -> FD ORDERS
--- Run this ONCE in Supabase: SQL Editor -> New query -> paste -> Run.
--- (Needs online-orders.sql to have been run first.)
---
--- A second locked-down "door" for the public website, like
--- submit_online_order, but for grocery lists: the customer types their list,
--- staff shop it at in-store prices and enter the register total in the app.
--- It can only ADD a grocery delivery order. It cannot read, change or delete.
--- =====================================================================
+-- Grocery list requests from the website (submit_grocery_list RPC).
+-- Insert-only, validated, rate-limited. Requires schema.sql and online-orders.sql.
 
 create or replace function public.submit_grocery_list(payload jsonb)
 returns bigint                      -- the new order number
@@ -36,8 +28,6 @@ begin
   if v_name = '' then raise exception 'name required'; end if;
   if v_address = '' then raise exception 'address required'; end if;
 
-  -- Turn the typed list into checklist items: one line = one item.
-  -- Bullets people type ("-", "*", "•", "1.") are removed; empty lines skipped.
   foreach v_line in array string_to_array(replace(v_text, E'\r', ''), E'\n') loop
     v_line := btrim(regexp_replace(v_line, '^\s*([-*•]|[0-9]+[.)])\s*', ''));
     if v_line <> '' then

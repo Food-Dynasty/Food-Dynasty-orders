@@ -1,20 +1,7 @@
-/*
-  DATA LAYER ("store")
-  --------------------
-  Every screen in the app saves and loads data ONLY through the functions below.
-  There are two versions with exactly the same functions:
-
-    DemoStore   saves in this browser's localStorage (no account needed; not shared)
-    CloudStore  saves in the shared Supabase database (needs config.js filled in)
-
-  The app picks one at start-up. Because both have the same function names, the
-  rest of the app never needs to know which one it's using. This idea (one
-  "interface", several implementations) is common in professional code.
-
-  Every function is "async": it returns a Promise, and callers use "await".
-  (The demo version doesn't need to wait for anything, but it's async anyway so it
-  can be swapped with the cloud version, which has to wait for the internet.)
-*/
+/**
+ * Data layer with two interchangeable implementations: DemoStore (localStorage)
+ * and CloudStore (Supabase). CloudStore is used when config.js is filled in.
+ */
 "use strict";
 
 const IS_CLOUD = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
@@ -28,7 +15,6 @@ function newId() {
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
 }
-
 
 /* ============ DEMO VERSION (this browser only) ============ */
 
@@ -149,9 +135,6 @@ const DemoStore = {
     return this._withCustomer(order);
   },
 
-  // --- Website flyers (weekly sales, holiday menus) ---
-  // Demo mode keeps the pictures only until the page is reloaded ("object URLs"),
-  // since this browser's storage is too small for real pictures.
   async listFlyers() {
     return this._read("fd-app-flyers").sort(function (a, b) { return b.created_at.localeCompare(a.created_at); });
   },
@@ -185,14 +168,11 @@ const DemoStore = {
   }
 };
 
-
 /* ============ CLOUD VERSION (shared Supabase database) ============ */
 
-// Supabase answers every request with { data, error }. This returns the data,
-// or throws the error so the screen can show it.
 function unwrap(result) {
   if (result.error) {
-    // 23505 = Postgres's code for "this value must be unique and already exists"
+    // 23505 = unique_violation
     if (result.error.code === "23505") throw new Error("Another customer already uses this phone number.");
     throw new Error(result.error.message);
   }
@@ -230,8 +210,6 @@ const CloudStore = {
     let request = this.client.from("customers").select("*").order("name").limit(50);
     const q = String(query || "").trim();
     if (q) {
-      // Characters like , ( ) % * have special meaning in Supabase filters,
-      // so they're removed from what the user typed before searching.
       const safe = q.replace(/[,()%*\\]/g, " ").trim();
       const digits = digitsOnly(q);
       const filters = [];
@@ -265,8 +243,8 @@ const CloudStore = {
 
   async listOrders(fromISO, toISO) {
     let request = this.client.from("orders").select(ORDER_COLUMNS).order("due_at");
-    if (fromISO) request = request.gte("due_at", fromISO);   // gte = greater than or equal
-    if (toISO) request = request.lt("due_at", toISO);        // lt  = less than
+    if (fromISO) request = request.gte("due_at", fromISO);
+    if (toISO) request = request.lt("due_at", toISO);
     return unwrap(await request);
   },
 
@@ -293,9 +271,6 @@ const CloudStore = {
     return unwrap(await this.client.from("orders").update(changes).eq("id", id).select(ORDER_COLUMNS).single());
   },
 
-  // --- Website flyers (weekly sales, holiday menus) ---
-  // The files go in the "flyers" storage bucket; a row in the "flyers" table lists
-  // them. The public website reads that table (see supabase/website-flyers.sql).
   async listFlyers() {
     return unwrap(await this.client.from("flyers").select("*").order("created_at", { ascending: false }).limit(30));
   },
@@ -330,7 +305,6 @@ const CloudStore = {
     unwrap(await this.client.from("flyers").delete().eq("id", flyer.id));
   }
 };
-
 
 // Pick the version to use
 const Store = IS_CLOUD ? CloudStore : DemoStore;
