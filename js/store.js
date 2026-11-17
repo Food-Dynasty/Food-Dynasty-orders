@@ -46,6 +46,7 @@ const DemoStore = {
   },
 
   async getUser() { return { email: "demo mode" }; },
+  async isAdmin() { return true; },
   async signIn() { return { email: "demo mode" }; },
   async signOut() {},
 
@@ -194,6 +195,12 @@ const CloudStore = {
   async getUser() {
     const result = await this.client.auth.getSession();
     return result.data.session ? result.data.session.user : null;
+  },
+
+  // Admins manage holiday menus; the database enforces this too (supabase/admin-role.sql)
+  async isAdmin() {
+    const result = await this.client.rpc("is_admin");
+    return !result.error && result.data === true;
   },
 
   async signIn(email, password) {

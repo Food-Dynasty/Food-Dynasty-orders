@@ -34,7 +34,7 @@ A phone-friendly staff app for **Food Dynasty Supermarket** (Staten Island, NY).
 
 ## Setup
 
-1. Create a Supabase project. In the SQL editor, run these in order: `supabase/schema.sql`, `supabase/online-orders.sql`, `supabase/online-grocery.sql`, `supabase/website-flyers.sql`.
+1. Create a Supabase project. In the SQL editor, run these in order: `supabase/schema.sql`, `supabase/online-orders.sql`, `supabase/online-grocery.sql`, `supabase/website-flyers.sql`, `supabase/admin-role.sql` (then make yourself an admin, see that file).
 2. In **Authentication → Sign In / Providers**, turn off "Allow new users to sign up". Then add each staff member under **Authentication → Users**.
 3. Put the project URL and publishable key in `js/config.js`. Leave the URL empty to run in demo mode.
 

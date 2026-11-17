@@ -15,7 +15,8 @@ const THEMES = {
 const MAX_PICTURE_WIDTH = 1600;   // pixels: sharp on any screen, still a small file
 
 async function showWebsite() {
-  const flyers = await Store.listFlyers();
+  // Staff manage the weekly ad; holiday menus are admin-only (enforced by the database too)
+  const [flyers, admin] = await Promise.all([Store.listFlyers(), Store.isAdmin()]);
   const today = dateValue(new Date());
   const isShowing = function (f) {
     return (!f.starts_on || f.starts_on <= today) && (!f.ends_on || f.ends_on >= today);
@@ -69,7 +70,7 @@ async function showWebsite() {
 
   view.innerHTML =
     '<div class="screen-head"><h1>Website</h1></div>' +
-    '<p class="muted">Upload the weekly ad or a holiday menu as a <strong>PDF or pictures</strong>. It shows on the website right away (within a minute).</p>' +
+    '<p class="muted">Upload the weekly ad as a <strong>PDF or pictures</strong>. It shows on the website within a minute.</p>' +
 
     // ---- WEEKLY SALES ----
     '<section class="panel"><h2>' + icon("tag") + ' Weekly sales ad</h2>' +
@@ -91,7 +92,12 @@ async function showWebsite() {
       (weekly.length ? '<ul class="card-list flyer-list">' + weekly.map(flyerCard).join("") + "</ul>" : '<p class="muted">No weekly ads uploaded yet. The website links to the Key Food ad instead.</p>') +
     "</section>" +
 
-    // ---- HOLIDAY MENU ----
+    // ---- HOLIDAY MENU (admins only) ----
+    (!admin
+      ? '<section class="panel"><h2>' + icon("calendar") + ' Holiday menu</h2>' +
+          '<p class="muted">Holiday menus and other website changes are handled by your web designer. Contact them to set up the next holiday menu.</p>' +
+        "</section>"
+      :
     '<section class="panel"><h2>' + icon("calendar") + ' Holiday menu</h2>' +
       '<form class="stack" id="holiday-form" novalidate>' +
         '<label>Title<input name="title" value="Thanksgiving Dinner" required></label>' +
@@ -109,7 +115,7 @@ async function showWebsite() {
         '<button class="btn btn-primary btn-block" type="submit">Upload holiday menu</button>' +
       "</form>" +
       (holiday.length ? '<ul class="card-list flyer-list">' + holiday.map(flyerCard).join("") + "</ul>" : '<p class="muted">No holiday menus yet. The website hides the holiday page until there is one.</p>') +
-    "</section>";
+    "</section>");
 
   view.onclick = async function (event) {
     // Deal pictures: upload more, or remove them all
