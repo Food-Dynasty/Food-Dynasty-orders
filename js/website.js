@@ -14,11 +14,11 @@
 "use strict";
 
 const THEMES = {
-  thanksgiving: "🦃 Thanksgiving",
-  christmas: "🎄 Christmas",
-  easter: "🐣 Easter",
-  summer: "☀️ Summer / July 4th",
-  general: "⭐ Other holiday"
+  thanksgiving: "Thanksgiving",
+  christmas: "Christmas",
+  easter: "Easter",
+  summer: "Summer / July 4th",
+  general: "Other holiday"
 };
 
 const MAX_PICTURE_WIDTH = 1600;   // pixels: sharp on any screen, still a small file
@@ -59,7 +59,7 @@ async function showWebsite() {
     '<p class="muted">Upload the weekly ad or a holiday menu as a <strong>PDF or pictures</strong>. It shows on the website right away (within a minute).</p>' +
 
     // ---- WEEKLY SALES ----
-    '<section class="panel"><h2>🏷️ Weekly sales ad</h2>' +
+    '<section class="panel"><h2>' + icon("tag") + ' Weekly sales ad</h2>' +
       '<form class="stack" id="weekly-form" novalidate>' +
         '<label>PDF or pictures of the ad<input name="files" type="file" accept="application/pdf,image/*" multiple required></label>' +
         '<div class="two-col">' +
@@ -73,7 +73,7 @@ async function showWebsite() {
     "</section>" +
 
     // ---- HOLIDAY MENU ----
-    '<section class="panel"><h2>🦃 Holiday menu</h2>' +
+    '<section class="panel"><h2>' + icon("calendar") + ' Holiday menu</h2>' +
       '<form class="stack" id="holiday-form" novalidate>' +
         '<label>Title<input name="title" value="Thanksgiving Dinner" required></label>' +
         '<label>Look of the page<select name="theme">' +

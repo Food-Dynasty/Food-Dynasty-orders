@@ -31,7 +31,41 @@ function platter(name, small, large) {
   return { name: name, sizes: [["Small", small], ["Large", large]] };
 }
 
+// SEASONAL CATEGORIES: a category with season: "thanksgiving" only shows on the
+// website's order page from Nov 1 until 3 days before Thanksgiving (orders need
+// 3 days' notice). Thanksgiving is the 4th Thursday of November, so the dates
+// move every year on their own. The staff app always shows every category.
+function thanksgivingDate(year) {
+  const nov1 = new Date(year, 10, 1);                  // months count from 0: 10 = November
+  const firstThursday = 1 + ((4 - nov1.getDay() + 7) % 7);
+  return new Date(year, 10, firstThursday + 21);      // + 3 weeks = 4th Thursday
+}
+
+function categoryInSeason(category, today) {
+  if (category.season !== "thanksgiving") return true;
+  const day = today || new Date();
+  const lastOrderDay = thanksgivingDate(day.getFullYear());
+  lastOrderDay.setDate(lastOrderDay.getDate() - 3);
+  return day >= new Date(day.getFullYear(), 10, 1) && day <= new Date(lastOrderDay.getFullYear(), lastOrderDay.getMonth(), lastOrderDay.getDate(), 23, 59);
+}
+
 const CATERING_MENU = [
+  {
+    id: "thanksgiving",
+    name: "Thanksgiving Dinner Specials",
+    season: "thanksgiving",
+    note: "Plus tax. Write your choices in the item's note: 1 stuffing, 1 pasta, 1 vegetable, 1 potato and your pie. " +
+          "Stuffing: Traditional Vegetable, Sausage, or Cranberry & Vegetables. " +
+          "Pasta: Baked Ziti, Penne Vodka, Penne Alfredo, or Mac & Cheese. " +
+          "Vegetable: Broccoli Oreganata, Stuffed Mushrooms, String Beans, or Grilled Vegetables. " +
+          "Potato: Mashed, Roasted, Seasoned Wedges, Candied Yams, Buttery Mashed, Garlic Mashed, Caramelized Onion, or Sweet Potato.",
+    items: [
+      { name: "Thanksgiving Dinner for 8–10", sizes: [["12–14 lb turkey, half trays", 299]],
+        hint: "Cooked turkey with half trays of stuffing, pasta, vegetable and potato. Includes turkey gravy, cranberry sauce, dinner rolls and 1 pie." },
+      { name: "Thanksgiving Dinner for 15–20", sizes: [["18–20 lb turkey, full trays", 399]],
+        hint: "Cooked turkey with full trays of stuffing, pasta, vegetable and potato. Includes prosciutto bread, turkey gravy, cranberry sauce, dinner rolls and 2 pies." }
+    ]
+  },
   {
     id: "packages",
     name: "Buffet Packages",

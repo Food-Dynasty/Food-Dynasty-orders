@@ -123,8 +123,8 @@ function nextStatus(order) {
 }
 
 function badges(order) {
-  return (order.source === "online" ? '<span class="badge badge-online">🌐 Online</span>' : "") +
-         (order.source === "instore" ? '<span class="badge badge-instore">🛍️ In-store</span>' : "") +
+  return (order.source === "online" ? '<span class="badge badge-online">' + icon("globe") + " Online</span>" : "") +
+         (order.source === "instore" ? '<span class="badge badge-instore">' + icon("bag") + " In-store</span>" : "") +
          '<span class="badge badge-' + order.kind + '">' + (order.kind === "catering" ? "Catering" : "Grocery") + "</span>" +
          '<span class="badge">' + (order.fulfillment === "delivery" ? "Delivery" : "Pickup") + "</span>" +
          '<span class="status status-' + order.status + '">' + STATUS_LABEL[order.status] + "</span>" +
@@ -230,7 +230,7 @@ async function showOrders(range) {
     upcoming: [addDays(today, 1), addDays(today, 60), "Upcoming"],
     past: [addDays(today, -14), today, "Past"],
     // Website orders waiting to be confirmed, whatever their date
-    online: [null, null, "🌐 New" + (onlineWaiting.length ? " (" + onlineWaiting.length + ")" : "")]
+    online: [null, null, icon("globe") + " New" + (onlineWaiting.length ? " (" + onlineWaiting.length + ")" : "")]
   };
   const r = ranges[range] || ranges.today;
   let orders = range === "online"
@@ -242,7 +242,7 @@ async function showOrders(range) {
 
   view.innerHTML =
     '<div class="screen-head"><h1>Orders</h1>' +
-      '<button type="button" class="btn btn-small" data-action="refresh">↻ Refresh</button></div>' +
+      '<button type="button" class="btn btn-small" data-action="refresh">' + icon("refresh") + ' Refresh</button></div>' +
     '<div class="segmented" role="tablist">' +
       Object.keys(ranges).map(function (key) {
         return '<a role="tab" href="#/orders/' + key + '" class="' + (key === range ? "active" : "") + '">' + ranges[key][2] + "</a>";
@@ -264,7 +264,7 @@ function orderCardHTML(o) {
     '<li><a class="card order-card' + (done ? " done" : "") + '" href="#/order/' + o.id + '">' +
       '<div class="card-row"><strong>' + esc(prettyWhen(o.due_at)) + '</strong><span class="order-no">#' + o.id + "</span></div>" +
       '<div class="card-row"><span class="card-name">' + esc(o.customer ? o.customer.name : "(unknown)") + "</span>" +
-        "<strong>" + (Number(o.total) > 0 ? money(o.total) : "Total TBD") + "</strong></div>" +
+        "<strong>" + (o.source === "instore" ? "Paid in store" : (Number(o.total) > 0 ? money(o.total) : "Total TBD")) + "</strong></div>" +
       '<div class="badges">' + badges(o) + "</div>" +
     "</a></li>"
   );
@@ -306,10 +306,12 @@ async function showOrder(id) {
       '<div class="panel">' +
         '<p class="big-when">' + (o.fulfillment === "delivery" ? "Deliver" : "Pickup") + ": " + esc(prettyWhen(o.due_at)) + "</p>" +
         "<p><strong>" + esc(c.name) + "</strong> · <a href=\"tel:" + esc(digitsOnly(c.phone)) + "\">" + esc(prettyPhone(c.phone)) + "</a></p>" +
-        (o.fulfillment === "delivery" ? "<p>📍 " + esc(o.delivery_address) + "</p>" : "") +
+        (o.fulfillment === "delivery" ? "<p>" + icon("pin") + " " + esc(o.delivery_address) + "</p>" : "") +
         (c.notes ? '<p class="muted">Customer note: ' + esc(c.notes) + "</p>" : "") +
       "</div>" +
       '<div class="panel"><h2>Items</h2>' + itemsHTML + "</div>" +
+      // In-store deliveries were paid at the register: no money box at all
+      (o.source === "instore" ? '<div class="panel"><p class="pay-state paid">' + icon("check") + " Paid in store</p></div>" :
       '<div class="panel totals">' +
         (o.kind === "catering" ? row("Subtotal", money(o.subtotal)) : "") +
         (Number(o.delivery_fee) ? row("Delivery fee", money(o.delivery_fee)) : "") +
@@ -321,7 +323,7 @@ async function showOrder(id) {
             row("Balance due", money(Math.max(0, balance)), "grand")
           : "") +
         (o.payment_method ? row("Payment", esc(o.payment_method)) : "") +
-      "</div>" +
+      "</div>") +
       (o.notes ? '<div class="panel"><h2>Notes</h2><p class="items-text">' + esc(o.notes) + "</p></div>" : "") +
     "</section>" +
 
@@ -333,21 +335,21 @@ async function showOrder(id) {
     (o.source === "online" ? onlinePanelHTML(o) : "") +
 
     // PAYMENT: change it any time, e.g. a "Not paid yet" order paid at the door
-    (o.status !== "cancelled" ? paymentPanelHTML(o) : "") +
+    (o.status !== "cancelled" && o.source !== "instore" ? paymentPanelHTML(o) : "") +
 
     '<div class="actions no-print">' +
       (next ? '<button type="button" class="btn btn-primary btn-block" data-action="status" data-status="' + next + '">Mark as ' + STATUS_LABEL[next] + "</button>" : "") +
       // Shortcut: finish the order in one tap instead of stepping through every status
       (next && next !== "completed"
-        ? '<button type="button" class="btn btn-block complete-now" data-action="status" data-status="completed">✓ Complete now</button>'
+        ? '<button type="button" class="btn btn-block complete-now" data-action="status" data-status="completed">' + icon("check") + ' Complete now</button>'
         : "") +
       '<div class="btn-row">' +
         (o.kind === "catering"
-          ? '<button type="button" class="btn btn-primary" data-action="print" data-copy="customer">🧾 Customer copy</button>' +
-            '<button type="button" class="btn" data-action="print" data-copy="kitchen">🖨 Kitchen copy</button>'
-          : '<button type="button" class="btn" data-action="print" data-copy="kitchen">🖨 Print</button>') +
-        '<button type="button" class="btn" data-action="reorder">↻ Reorder</button>' +
-        '<a class="btn" href="#/customer/' + esc(c.id) + '">👤 Customer</a>' +
+          ? '<button type="button" class="btn btn-primary" data-action="print" data-copy="customer">' + icon("receipt") + ' Customer copy</button>' +
+            '<button type="button" class="btn" data-action="print" data-copy="kitchen">' + icon("printer") + ' Kitchen copy</button>'
+          : '<button type="button" class="btn" data-action="print" data-copy="kitchen">' + icon("printer") + ' Print</button>') +
+        '<button type="button" class="btn" data-action="reorder">' + icon("refresh") + ' Reorder</button>' +
+        '<a class="btn" href="#/customer/' + esc(c.id) + '">' + icon("user") + ' Customer</a>' +
       "</div>" +
       (o.status !== "cancelled" && o.status !== "completed"
         ? '<button type="button" class="link-btn danger" data-action="status" data-status="cancelled">Cancel this order</button>'
@@ -412,7 +414,7 @@ function onlinePanelHTML(o) {
   if (o.kind === "grocery") {
     return (
       '<div class="panel online-panel no-print">' +
-        "<h2>🌐 Grocery list from the website</h2>" +
+        "<h2>" + icon("globe") + " Grocery list from the website</h2>" +
         "<ol class=\"mini-steps\">" +
           "<li>Shop the list, tapping each item as it goes in the basket.</li>" +
           "<li>Enter the <strong>register total</strong> below.</li>" +
@@ -425,12 +427,12 @@ function onlinePanelHTML(o) {
   const problems = o.kind === "catering" ? priceProblems(o) : [];
   return (
     '<div class="panel online-panel no-print">' +
-      "<h2>🌐 Sent from the website</h2>" +
+      "<h2>" + icon("globe") + " Sent from the website</h2>" +
       "<p>Call the customer to confirm the order and take the deposit, then mark it as Preparing.</p>" +
       (problems.length
-        ? '<div class="error"><strong>⚠ Price check failed. Confirm the total by phone:</strong><ul>' +
+        ? '<div class="error"><strong>' + icon("alert") + ' Price check failed. Confirm the total by phone:</strong><ul>' +
             problems.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul></div>"
-        : '<p class="pay-state paid">✓ Prices match the menu</p>') +
+        : '<p class="pay-state paid">' + icon("check") + " Prices match the menu</p>") +
     "</div>"
   );
 }
@@ -523,7 +525,7 @@ function groceryChecklist(text) {
 
 function checklistProgress(list) {
   const done = list.filter(function (item) { return item.picked; }).length;
-  return done + " of " + list.length + " in basket" + (done === list.length && list.length ? " ✅" : "");
+  return done + " of " + list.length + " in basket" + (done === list.length && list.length ? " · done" : "");
 }
 
 function checklistHTML(list) {
@@ -708,6 +710,8 @@ function draftTotals() {
     const tax = roundCents((subtotal + fee) * TAX_RATE);
     return { subtotal: subtotal, fee: fee, tax: tax, total: roundCents(subtotal + fee + tax) };
   }
+  // In-store delivery: rung up and paid at the register, nothing to total here
+  if (draft.kind === "instore") return { subtotal: 0, fee: 0, tax: 0, total: 0 };
   // Grocery: the register total already includes tax
   const registerTotal = roundCents(Number(draft.registerTotal) || 0);
   const fee = draft.fulfillment === "delivery" ? GROCERY_DELIVERY_FEE : 0;
@@ -734,21 +738,21 @@ function showNewOrder() {
     (c
       ? '<section class="panel"><h2><span class="step">2</span> Type of order</h2>' +
           '<div class="choice-row">' +
-            choiceButton("kind", "grocery", "🛒 Grocery (phone order)", draft.kind) +
-            choiceButton("kind", "catering", "🍝 Catering", draft.kind) +
-            choiceButton("kind", "instore", "🛍️ In-store delivery", draft.kind) +
+            choiceButton("kind", "grocery", icon("cart") + " Grocery (phone order)", draft.kind) +
+            choiceButton("kind", "catering", icon("utensils") + " Catering", draft.kind) +
+            choiceButton("kind", "instore", icon("bag") + " In-store delivery", draft.kind) +
           "</div>" +
           // Catering can be pickup or delivery. Phone grocery orders are always
           // delivery (free over the $50 minimum), so there's no choice to make.
           (draft.kind === "catering"
             ? '<div class="choice-row">' +
-                choiceButton("fulfillment", "delivery", "🚚 Delivery", draft.fulfillment) +
-                choiceButton("fulfillment", "pickup", "🏪 Pickup", draft.fulfillment) +
+                choiceButton("fulfillment", "delivery", icon("truck") + " Delivery", draft.fulfillment) +
+                choiceButton("fulfillment", "pickup", icon("store") + " Pickup", draft.fulfillment) +
               "</div>"
             : (draft.kind === "grocery"
-                ? '<p class="hint">🚚 Phone grocery orders are delivered free (minimum ' + money(GROCERY_DELIVERY_MINIMUM) + ").</p>"
+                ? '<p class="hint">' + icon("truck") + ' Phone grocery orders are delivered free (minimum ' + money(GROCERY_DELIVERY_MINIMUM) + ").</p>"
                 : (draft.kind === "instore"
-                    ? '<p class="hint">🛍️ The customer already paid at the register. We bring the bags home.</p>'
+                    ? '<p class="hint">' + icon("bag") + ' The customer already paid at the register. We bring the bags home.</p>'
                     : ""))) +
         "</section>"
       : "") +
@@ -781,7 +785,7 @@ function customerPickerHTML() {
     '<label for="cust-search">Search by phone or name</label>' +
     '<input id="cust-search" type="search" inputmode="search" autocomplete="off" placeholder="718 555 0123 or Maria">' +
     '<ul class="pick-list" id="cust-results"></ul>' +
-    '<details class="new-customer" id="new-customer"><summary>＋ New customer</summary>' +
+    '<details class="new-customer" id="new-customer"><summary>' + icon("plus") + ' New customer</summary>' +
       '<form id="customer-form" class="stack" novalidate>' +
         customerFieldsHTML({}) +
         '<button class="btn btn-primary" type="submit">Save customer</button>' +
@@ -847,11 +851,8 @@ function detailsHTML() {
 
       (isCatering ? cateringPickerHTML() :
        isInstore
-        ? '<div class="two-col">' +
-            '<label>Number of bags<input name="bags" type="number" inputmode="numeric" min="1" step="1" value="' + esc(draft.bags) + '" placeholder="4"></label>' +
-            '<label>Register total <small>(optional)</small>' +
-              '<input name="registerTotal" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(draft.registerTotal) + '" placeholder="0.00"></label>' +
-          "</div>" :
+        // In-store: already rung up and paid at the register, so no total, payment or minimum
+        ? '<label>Number of bags<input name="bags" type="number" inputmode="numeric" min="1" step="1" value="' + esc(draft.bags) + '" placeholder="4"></label>' :
         '<label>Items <small>(one per line)</small>' +
           '<textarea name="itemsText" rows="6" placeholder="2 gal whole milk&#10;5 lb chicken thighs&#10;1 dozen eggs">' + esc(draft.itemsText) + "</textarea></label>" +
         '<label>Register total (incl. tax)' +
@@ -866,22 +867,21 @@ function detailsHTML() {
         '<label>Time<input name="time" type="time" step="900" value="' + esc(draft.time) + '"></label>' +
       "</div>" +
 
-      '<div class="two-col">' +
-        '<label>Payment<select name="payment">' +
-          (isCatering ? ["", "Cash", "Card", "Not paid yet"] :
-           isInstore ? ["", "Cash", "Card", "EBT"] :   // in-store: already paid at the register
-           ["", "Cash", "Card", "EBT", "Not paid yet"]).map(function (p) {
-            return '<option value="' + p + '"' + (draft.payment === p ? " selected" : "") + ">" + (p || "Choose…") + "</option>";
-          }).join("") +
-        "</select></label>" +
-        (isCatering
-          ? '<label>Deposit paid<input name="deposit" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(draft.deposit) + '" placeholder="0.00"></label>'
-          : "<span></span>") +
-      "</div>" +
+      (isInstore ? "" :
+        '<div class="two-col">' +
+          '<label>Payment<select name="payment">' +
+            (isCatering ? ["", "Cash", "Card", "Not paid yet"] : ["", "Cash", "Card", "EBT", "Not paid yet"]).map(function (p) {
+              return '<option value="' + p + '"' + (draft.payment === p ? " selected" : "") + ">" + (p || "Choose…") + "</option>";
+            }).join("") +
+          "</select></label>" +
+          (isCatering
+            ? '<label>Deposit paid<input name="deposit" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(draft.deposit) + '" placeholder="0.00"></label>'
+            : "<span></span>") +
+        "</div>") +
 
       '<label>Notes<textarea name="notes" rows="2" placeholder="Ring bell twice, leave with doorman…">' + esc(draft.notes) + "</textarea></label>" +
 
-      '<div class="totals" id="totals">' + totalsHTML(t) + "</div>" +
+      '<div class="totals" id="totals"' + (isInstore ? " hidden" : "") + ">" + totalsHTML(t) + "</div>" +
       '<p class="error" id="order-error" role="alert" hidden></p>' +
       '<button class="btn btn-primary btn-block" type="submit">Save order</button>' +
     "</form>"
@@ -1084,7 +1084,6 @@ async function saveOrder() {
   // Checks before saving
   if (isCatering && !draft.lines.length) throw new Error("Add at least one catering item.");
   if (isInstore && bags < 1) throw new Error("Enter how many bags.");
-  if (isInstore && !draft.payment) throw new Error("Choose how the customer paid at the register.");
   if (isPhoneGrocery && !draft.itemsText.trim()) throw new Error("Type the grocery list.");
   if (isPhoneGrocery && !(t.subtotal > 0)) throw new Error("Enter the register total.");
   if (isPhoneGrocery && isDelivery && t.subtotal < GROCERY_DELIVERY_MINIMUM) {
@@ -1118,7 +1117,7 @@ async function saveOrder() {
     tax: t.tax,
     total: t.total,
     deposit_paid: roundCents(Number(draft.deposit) || 0),
-    payment_method: draft.payment || null,
+    payment_method: isInstore ? "Paid in store" : (draft.payment || null),
     delivery_address: isDelivery ? draft.deliveryAddress.trim() : null,
     notes: draft.notes.trim() || null
   };
@@ -1178,11 +1177,11 @@ async function showCustomer(id) {
     '<p><a href="#/customers" class="back">‹ Customers</a></p>' +
     '<div class="screen-head"><h1>' + esc(c.name) + "</h1></div>" +
     '<div class="panel">' +
-      '<p><a href="tel:' + esc(c.phone) + '">📞 ' + esc(prettyPhone(c.phone)) + "</a></p>" +
-      (c.address ? "<p>📍 " + esc(fullAddress(c)) + "</p>" : "") +
+      '<p><a href="tel:' + esc(c.phone) + '">' + icon("phone") + " " + esc(prettyPhone(c.phone)) + "</a></p>" +
+      (c.address ? "<p>" + icon("pin") + " " + esc(fullAddress(c)) + "</p>" : "") +
       (c.notes ? '<p class="muted">' + esc(c.notes) + "</p>" : "") +
       '<div class="btn-row">' +
-        '<button type="button" class="btn btn-primary" data-action="new-for">＋ New order</button>' +
+        '<button type="button" class="btn btn-primary" data-action="new-for">' + icon("plus") + ' New order</button>' +
       "</div>" +
       '<details class="new-customer"><summary>Edit details</summary>' +
         '<form id="edit-customer" class="stack" novalidate>' + customerFieldsHTML(c) +
@@ -1193,7 +1192,7 @@ async function showCustomer(id) {
     (orders.length
       ? '<ul class="card-list">' + orders.map(function (o) {
           return orderCardHTML(o).replace("</a></li>",
-            "</a>" + '<button type="button" class="btn btn-small reorder-btn" data-action="reorder" data-id="' + o.id + '">↻ Reorder</button></li>');
+            "</a>" + '<button type="button" class="btn btn-small reorder-btn" data-action="reorder" data-id="' + o.id + '">' + icon("refresh") + ' Reorder</button></li>');
         }).join("") + "</ul>"
       : '<p class="muted">No orders yet.</p>');
 
@@ -1314,7 +1313,7 @@ function announce(order, count) {
   const name = order.customer ? order.customer.name : "a customer";
   const banner = document.getElementById("alert-banner");
   document.getElementById("alert-text").textContent =
-    "🔔 New online order #" + order.id + " from " + name +
+    "New online order #" + order.id + " from " + name +
     " · " + (order.fulfillment === "delivery" ? "Delivery " : "Pickup ") + prettyWhen(order.due_at) +
     (count > 1 ? " (+" + (count - 1) + " more)" : "");
   document.getElementById("alert-link").href = count > 1 ? "#/orders/online" : "#/order/" + order.id;

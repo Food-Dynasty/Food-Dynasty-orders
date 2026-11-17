@@ -76,8 +76,28 @@ small,
   font-size: 1.15rem;
 }
 
-.crown {
-  color: var(--yellow);
+.app-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-logo {
+  height: 34px;
+  width: auto;
+}
+
+/* Line icons from js/icons.js: as big as the text, colored like the text */
+.icon {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
 }
 
 .app-header-right {
