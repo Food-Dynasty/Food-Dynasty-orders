@@ -1,0 +1,8 @@
+// Cloudflare deployment: serves this folder as a static website.
+{
+  "name": "food-dynasty-orders",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "."
+  }
+}
