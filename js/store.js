@@ -178,6 +178,8 @@ const DemoStore = {
     return flyer;
   },
 
+  async removeFlyerFiles() {},   // demo pictures only live until the page reloads
+
   async deleteFlyer(flyer) {
     this._write("fd-app-flyers", this._read("fd-app-flyers").filter(function (f) { return f.id !== flyer.id; }));
   }
@@ -313,13 +315,18 @@ const CloudStore = {
     return unwrap(await this.client.from("flyers").update(changes).eq("id", id).select().single());
   },
 
-  // Deletes the row AND its files, so old flyers don't pile up in storage
-  async deleteFlyer(flyer) {
+  // Deletes files from the "flyers" bucket, given their public addresses
+  async removeFlyerFiles(urls) {
     const marker = "/object/public/flyers/";
-    const paths = [].concat(flyer.pages || [], flyer.pdf_url ? [flyer.pdf_url] : [])
+    const paths = (urls || [])
       .map(function (url) { const i = url.indexOf(marker); return i >= 0 ? decodeURIComponent(url.slice(i + marker.length)) : null; })
       .filter(Boolean);
     if (paths.length) unwrap(await this.client.storage.from("flyers").remove(paths));
+  },
+
+  // Deletes the row AND its files, so old flyers don't pile up in storage
+  async deleteFlyer(flyer) {
+    await this.removeFlyerFiles([].concat(flyer.pages || [], flyer.deal_images || [], flyer.pdf_url ? [flyer.pdf_url] : []));
     unwrap(await this.client.from("flyers").delete().eq("id", flyer.id));
   }
 };

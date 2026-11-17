@@ -594,6 +594,34 @@ textarea {
   font-weight: 600;
 }
 
+/* Deal pictures in the weekly ad's "Homepage deals" panel */
+.deal-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.deal-thumbs img {
+  height: 64px;
+  width: auto;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+.small-label {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.small-label input[type="file"] {
+  display: block;
+  margin: 4px 0;
+  max-width: 100%;
+}
+
 .headline-edit textarea {
   width: 100%;
   margin: 6px 0;

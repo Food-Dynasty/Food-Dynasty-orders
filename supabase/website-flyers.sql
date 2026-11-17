@@ -35,6 +35,8 @@ create table if not exists public.flyers (
 alter table public.flyers add column if not exists headline text;
 -- holiday menus: show the big holiday section on the homepage (the on/off switch)
 alter table public.flyers add column if not exists featured boolean not null default true;
+-- weekly ads: pictures of the best deals (cut from the ad), shown big on the homepage
+alter table public.flyers add column if not exists deal_images jsonb not null default '[]'::jsonb;
 
 create index if not exists flyers_kind_idx on public.flyers (kind, created_at desc);
 

@@ -47,9 +47,19 @@ async function showWebsite() {
           state +
           // Weekly ads: the headline deals shown big on the homepage, editable any time
           (f.kind === "weekly"
-            ? '<details class="headline-edit"><summary>Homepage deals' + (f.headline ? ": " + esc(f.headline.split("\n").length) + " line" + (f.headline.split("\n").length === 1 ? "" : "s") : ": none") + "</summary>" +
-                '<textarea rows="3" id="headline-' + f.id + '">' + esc(f.headline || "") + "</textarea>" +
-                '<button type="button" class="btn btn-small" data-action="save-headline" data-id="' + f.id + '">Save deals</button>' +
+            ? '<details class="headline-edit"><summary>Homepage deals: ' + esc(dealsSummary(f)) + "</summary>" +
+                // Deal pictures (shown on the homepage instead of the text lines)
+                ((f.deal_images || []).length
+                  ? '<div class="deal-thumbs">' + f.deal_images.map(function (url) {
+                      return '<img src="' + esc(url) + '" alt="">';
+                    }).join("") + "</div>" +
+                    '<button type="button" class="link-btn danger" data-action="remove-deal-images" data-id="' + f.id + '">Remove deal pictures</button>'
+                  : "") +
+                '<label class="small-label">Add deal pictures<input type="file" accept="image/*" multiple id="deal-files-' + f.id + '"></label>' +
+                '<button type="button" class="btn btn-small" data-action="add-deal-images" data-id="' + f.id + '">Upload pictures</button>' +
+                '<label class="small-label">Deal lines <small>(used when there are no pictures, and read aloud for blind visitors)</small>' +
+                  '<textarea rows="3" id="headline-' + f.id + '">' + esc(f.headline || "") + "</textarea></label>" +
+                '<button type="button" class="btn btn-small" data-action="save-headline" data-id="' + f.id + '">Save deal lines</button>' +
               "</details>"
             : "") +
           // Holiday menus: the on/off switch for the big holiday section on the homepage
@@ -81,6 +91,9 @@ async function showWebsite() {
         '<label>Headline deals for the homepage <small>(optional, 1 to 3 lines)</small>' +
           '<textarea name="headline" rows="3" placeholder="FREE whole turkey with $250 purchase&#10;FREE 40-pack of water with $125 purchase"></textarea></label>' +
         '<p class="hint">The best offers, one per line. They show in big letters on the homepage while this ad is up.</p>' +
+        '<label>Deal pictures for the homepage <small>(optional, up to 4)</small>' +
+          '<input name="deal_files" type="file" accept="image/*" multiple></label>' +
+        '<p class="hint">Pictures of the best deals cut from the ad (like the free turkey). They show on the homepage instead of the lines above.</p>' +
         '<p class="error" id="weekly-error" role="alert" hidden></p>' +
         '<button class="btn btn-primary btn-block" type="submit">Upload weekly ad</button>' +
       "</form>" +
@@ -108,6 +121,33 @@ async function showWebsite() {
     "</section>";
 
   view.onclick = async function (event) {
+    // Deal pictures: upload more, or remove them all
+    const dealButton = event.target.closest('[data-action="add-deal-images"], [data-action="remove-deal-images"]');
+    if (dealButton) {
+      const flyer = flyers.find(function (f) { return f.id === Number(dealButton.dataset.id); });
+      const label = dealButton.textContent;
+      dealButton.disabled = true;
+      try {
+        if (dealButton.dataset.action === "add-deal-images") {
+          const files = Array.from(document.getElementById("deal-files-" + flyer.id).files);
+          if (!files.length) throw new Error("Choose one or more pictures first.");
+          await addDealImages(flyer, files, function (message) { dealButton.textContent = message; });
+          toast("Deal pictures uploaded");
+        } else {
+          if (!confirm("Remove the deal pictures from the homepage?")) return;
+          await Store.removeFlyerFiles(flyer.deal_images || []);
+          await Store.updateFlyer(flyer.id, { deal_images: [] });
+          toast("Deal pictures removed");
+        }
+        route();
+      } catch (error) {
+        showError(error);
+      } finally {
+        dealButton.disabled = false;
+        dealButton.textContent = label;
+      }
+      return;
+    }
     const save = event.target.closest('[data-action="save-headline"]');
     if (save) {
       try {
@@ -178,6 +218,9 @@ async function showWebsite() {
         starts_on: form.elements.starts_on.value || null,
         ends_on: form.elements.ends_on.value || null
       }, function (message) { button.textContent = message; });
+      // Weekly ad: deal pictures picked at the same time
+      const dealFiles = kind === "weekly" ? Array.from(form.elements.deal_files.files) : [];
+      if (dealFiles.length) await addDealImages(flyer, dealFiles, function (message) { button.textContent = message; });
       toast('"' + flyer.title + '" uploaded');
       route();
     } catch (error) {
@@ -188,6 +231,37 @@ async function showWebsite() {
       button.textContent = buttonText;
     }
   };
+}
+
+// "2 pictures · 2 lines", "none"...
+function dealsSummary(f) {
+  const pics = (f.deal_images || []).length;
+  const lines = f.headline ? f.headline.split("\n").length : 0;
+  const parts = [];
+  if (pics) parts.push(pics + (pics === 1 ? " picture" : " pictures"));
+  if (lines) parts.push(lines + (lines === 1 ? " line" : " lines"));
+  return parts.length ? parts.join(" · ") : "none";
+}
+
+// Uploads deal pictures for a weekly ad (shrunk like the ad pages) and adds them to it.
+// At most 4 in total, so the homepage stays tidy.
+const MAX_DEAL_IMAGES = 4;
+async function addDealImages(flyer, files, progress) {
+  const current = flyer.deal_images || [];
+  files.forEach(function (file) {
+    if (file.type.indexOf("image/") !== 0) throw new Error(file.name + " is not a picture.");
+  });
+  if (current.length + files.length > MAX_DEAL_IMAGES) {
+    throw new Error("Up to " + MAX_DEAL_IMAGES + " deal pictures. This ad already has " + current.length + ".");
+  }
+  const folder = "weekly/" + dateValue(new Date()) + "-deals-" + Math.random().toString(36).slice(2, 8);
+  const urls = [];
+  for (let i = 0; i < files.length; i++) {
+    progress("Uploading deal picture " + (i + 1) + " of " + files.length + "…");
+    const picture = await shrinkPicture(files[i]);
+    urls.push((await Store.uploadFlyerFile(folder + "/deal-" + (i + 1) + ".jpg", picture)).url);
+  }
+  return Store.updateFlyer(flyer.id, { deal_images: current.concat(urls) });
 }
 
 // Headline deals: trim each line, drop empty ones, keep at most 3 short lines
