@@ -267,10 +267,18 @@ textarea {
   margin-top: 12px;
 }
 
+/* minmax(0, 1fr) instead of 1fr: date fields have a built-in minimum width that
+   would otherwise push the columns wider than a small phone screen */
 .two-col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
+}
+
+.two-col input,
+.two-col select {
+  min-width: 0;
+  width: 100%;
 }
 
 /* ---------- Buttons ---------- */
@@ -471,6 +479,40 @@ textarea {
 
 .online-panel {
   border-left: 6px solid #1565c0;
+}
+
+/* Customer shopped in the store and we deliver the bags */
+.badge-instore {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+/* ---------- Website screen: uploaded flyers ---------- */
+.flyer-list {
+  margin-top: 16px;
+}
+
+.flyer-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.flyer-card img {
+  width: 72px;
+  height: 92px;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  display: block;
+}
+
+.flyer-card .status {
+  display: inline-block;
+  margin-top: 6px;
 }
 
 .mini-steps {

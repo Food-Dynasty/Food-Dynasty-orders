@@ -124,6 +124,7 @@ function nextStatus(order) {
 
 function badges(order) {
   return (order.source === "online" ? '<span class="badge badge-online">🌐 Online</span>' : "") +
+         (order.source === "instore" ? '<span class="badge badge-instore">🛍️ In-store</span>' : "") +
          '<span class="badge badge-' + order.kind + '">' + (order.kind === "catering" ? "Catering" : "Grocery") + "</span>" +
          '<span class="badge">' + (order.fulfillment === "delivery" ? "Delivery" : "Pickup") + "</span>" +
          '<span class="status status-' + order.status + '">' + STATUS_LABEL[order.status] + "</span>" +
@@ -207,6 +208,7 @@ async function route() {
     else if (page === "new") showNewOrder();
     else if (page === "customers") await showCustomers();
     else if (page === "customer") await showCustomer(parts[1]);
+    else if (page === "website") await showWebsite();   // in js/website.js
     else if (page === "login") showLogin();
     else location.hash = "#/orders";
   } catch (error) {
@@ -292,7 +294,8 @@ async function showOrder(id) {
         return "<li><span>" + esc(line.label || line.name) + (line.note ? '<br><small>Note: ' + esc(line.note) + "</small>" : "") +
                "</span><span>" + money(line.line_total) + "</span></li>";
       }).join("") + "</ul>"
-    : checklistHTML(checklist);
+    // In-store deliveries: already shopped and bagged, so just say how many bags
+    : (o.source === "instore" ? '<p class="items-text">' + esc(o.items_text) + "</p>" : checklistHTML(checklist));
 
   view.innerHTML =
     '<p><a href="#/orders" class="back">‹ Orders</a></p>' +
@@ -437,8 +440,9 @@ function onlinePanelHTML(o) {
 const PAY_METHODS = ["Cash", "Card", "EBT"];
 
 function paymentPanelHTML(o) {
-  // Grocery order without a total yet (sent from the website): ask for it first
-  if (o.kind === "grocery" && !(Number(o.total) > 0)) {
+  // Grocery order without a total yet (sent from the website): ask for it first.
+  // (In-store deliveries were rung up already, so the total is optional for them.)
+  if (o.kind === "grocery" && o.source !== "instore" && !(Number(o.total) > 0)) {
     return (
       '<div class="panel no-print"><h2>Register total</h2>' +
         '<p class="muted">After shopping, ring it up and enter the total here.</p>' +
@@ -663,7 +667,8 @@ function emptyDraft() {
   const soon = nextHalfHour();
   return {
     customer: null,
-    kind: null,            // "grocery" or "catering"
+    kind: null,            // "grocery", "catering" or "instore" (shopped in store, we deliver)
+    bags: "",              // in-store delivery: how many bags
     fulfillment: "delivery",
     lines: [],             // catering: [{ id, size, qty, note }]
     itemsText: "",         // grocery: the typed list
@@ -681,7 +686,7 @@ function emptyDraft() {
 function startReorder(order) {
   draft = emptyDraft();
   draft.customer = order.customer;
-  draft.kind = order.kind;
+  draft.kind = order.source === "instore" ? "instore" : order.kind;
   draft.fulfillment = order.fulfillment;
   draft.deliveryAddress = order.delivery_address || fullAddress(order.customer);
   draft.notes = order.notes || "";
@@ -731,6 +736,7 @@ function showNewOrder() {
           '<div class="choice-row">' +
             choiceButton("kind", "grocery", "🛒 Grocery (phone order)", draft.kind) +
             choiceButton("kind", "catering", "🍝 Catering", draft.kind) +
+            choiceButton("kind", "instore", "🛍️ In-store delivery", draft.kind) +
           "</div>" +
           // Catering can be pickup or delivery. Phone grocery orders are always
           // delivery (free over the $50 minimum), so there's no choice to make.
@@ -741,7 +747,9 @@ function showNewOrder() {
               "</div>"
             : (draft.kind === "grocery"
                 ? '<p class="hint">🚚 Phone grocery orders are delivered free (minimum ' + money(GROCERY_DELIVERY_MINIMUM) + ").</p>"
-                : "")) +
+                : (draft.kind === "instore"
+                    ? '<p class="hint">🛍️ The customer already paid at the register. We bring the bags home.</p>'
+                    : ""))) +
         "</section>"
       : "") +
 
@@ -829,14 +837,21 @@ function useCustomer(customer) {
 // --- Step 3: order details ---
 function detailsHTML() {
   const isCatering = draft.kind === "catering";
+  const isInstore = draft.kind === "instore";
   const t = draftTotals();
   const isDelivery = draft.fulfillment === "delivery";
 
   return (
     '<form id="order-form" class="panel stack" novalidate>' +
-      '<h2><span class="step">3</span> ' + (isCatering ? "Catering items" : "Grocery list") + "</h2>" +
+      '<h2><span class="step">3</span> ' + (isCatering ? "Catering items" : (isInstore ? "Delivery details" : "Grocery list")) + "</h2>" +
 
       (isCatering ? cateringPickerHTML() :
+       isInstore
+        ? '<div class="two-col">' +
+            '<label>Number of bags<input name="bags" type="number" inputmode="numeric" min="1" step="1" value="' + esc(draft.bags) + '" placeholder="4"></label>' +
+            '<label>Register total <small>(optional)</small>' +
+              '<input name="registerTotal" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(draft.registerTotal) + '" placeholder="0.00"></label>' +
+          "</div>" :
         '<label>Items <small>(one per line)</small>' +
           '<textarea name="itemsText" rows="6" placeholder="2 gal whole milk&#10;5 lb chicken thighs&#10;1 dozen eggs">' + esc(draft.itemsText) + "</textarea></label>" +
         '<label>Register total (incl. tax)' +
@@ -853,7 +868,9 @@ function detailsHTML() {
 
       '<div class="two-col">' +
         '<label>Payment<select name="payment">' +
-          (isCatering ? ["", "Cash", "Card", "Not paid yet"] : ["", "Cash", "Card", "EBT", "Not paid yet"]).map(function (p) {
+          (isCatering ? ["", "Cash", "Card", "Not paid yet"] :
+           isInstore ? ["", "Cash", "Card", "EBT"] :   // in-store: already paid at the register
+           ["", "Cash", "Card", "EBT", "Not paid yet"]).map(function (p) {
             return '<option value="' + p + '"' + (draft.payment === p ? " selected" : "") + ">" + (p || "Choose…") + "</option>";
           }).join("") +
         "</select></label>" +
@@ -970,8 +987,8 @@ async function handleNewOrderClick(event) {
   }
   if (action === "choose") {
     draft[target.dataset.field] = target.dataset.value;
-    // Grocery orders are always deliveries
-    if (draft.kind === "grocery") draft.fulfillment = "delivery";
+    // Grocery and in-store orders are always deliveries
+    if (draft.kind === "grocery" || draft.kind === "instore") draft.fulfillment = "delivery";
     showNewOrder();
   }
   if (action === "add-line") {
@@ -1058,14 +1075,19 @@ async function handleNewOrderSubmit(event) {
 
 async function saveOrder() {
   const isCatering = draft.kind === "catering";
+  const isInstore = draft.kind === "instore";
+  const isPhoneGrocery = draft.kind === "grocery";
   const isDelivery = draft.fulfillment === "delivery";
   const t = draftTotals();
+  const bags = parseInt(draft.bags, 10) || 0;
 
   // Checks before saving
   if (isCatering && !draft.lines.length) throw new Error("Add at least one catering item.");
-  if (!isCatering && !draft.itemsText.trim()) throw new Error("Type the grocery list.");
-  if (!isCatering && !(t.subtotal > 0)) throw new Error("Enter the register total.");
-  if (!isCatering && isDelivery && t.subtotal < GROCERY_DELIVERY_MINIMUM) {
+  if (isInstore && bags < 1) throw new Error("Enter how many bags.");
+  if (isInstore && !draft.payment) throw new Error("Choose how the customer paid at the register.");
+  if (isPhoneGrocery && !draft.itemsText.trim()) throw new Error("Type the grocery list.");
+  if (isPhoneGrocery && !(t.subtotal > 0)) throw new Error("Enter the register total.");
+  if (isPhoneGrocery && isDelivery && t.subtotal < GROCERY_DELIVERY_MINIMUM) {
     throw new Error("Phone deliveries need at least " + money(GROCERY_DELIVERY_MINIMUM) + ". This order is " + money(t.subtotal) + ".");
   }
   if (isDelivery && !draft.deliveryAddress.trim()) throw new Error("Enter the delivery address.");
@@ -1073,7 +1095,9 @@ async function saveOrder() {
 
   const order = {
     customer_id: draft.customer.id,
-    kind: draft.kind,
+    // In-store deliveries are saved as grocery deliveries marked source "instore"
+    kind: isInstore ? "grocery" : draft.kind,
+    source: isInstore ? "instore" : "staff",
     fulfillment: draft.fulfillment,
     due_at: toISO(draft.date, draft.time),
     // Catering lines are saved with their name and price AT THE TIME OF ORDER,
@@ -1087,8 +1111,8 @@ async function saveOrder() {
         qty: line.qty, unit_price: unitPrice, line_total: roundCents(unitPrice * line.qty),
         label: cateringLineLabel(line), note: line.note
       };
-    }) : groceryChecklist(draft.itemsText),   // grocery: [{ text, picked }] for the in-basket checklist
-    items_text: isCatering ? null : draft.itemsText.trim(),
+    }) : (isInstore ? [] : groceryChecklist(draft.itemsText)),   // grocery: [{ text, picked }] for the in-basket checklist
+    items_text: isCatering ? null : (isInstore ? bags + (bags === 1 ? " bag" : " bags") + " · shopped in store" : draft.itemsText.trim()),
     subtotal: t.subtotal,
     delivery_fee: t.fee,
     tax: t.tax,

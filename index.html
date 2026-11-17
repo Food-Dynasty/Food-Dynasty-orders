@@ -9,6 +9,7 @@
     #/order/12         one order's details
     #/customers        customer list and search
     #/customer/<id>    one customer, with their order history
+    #/website          upload the weekly sales ad and holiday menus (js/website.js)
     #/login            staff sign-in (only when connected to the cloud database)
 -->
 <html lang="en">
@@ -32,15 +33,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=20261115i">
+  <link rel="stylesheet" href="css/app.css?v=20261116a">
 
   <!-- Scripts run in this order (defer keeps the order and waits for the page):
        1. Supabase library  2. settings  3. catering menu  4. data layer  5. the app -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.js" defer></script>
-  <script src="js/config.js?v=20261115i" defer></script>
-  <script src="js/catering-menu.js?v=20261115i" defer></script>
-  <script src="js/store.js?v=20261115i" defer></script>
-  <script src="js/app.js?v=20261115i" defer></script>
+  <script src="js/config.js?v=20261116a" defer></script>
+  <script src="js/catering-menu.js?v=20261116a" defer></script>
+  <script src="js/store.js?v=20261116a" defer></script>
+  <script src="js/website.js?v=20261116a" defer></script>
+  <script src="js/app.js?v=20261116a" defer></script>
 </head>
 
 <body>
@@ -78,6 +80,7 @@
     <a href="#/orders" data-tab="orders"><span aria-hidden="true">📋</span>Orders<b class="tab-badge" id="online-badge" hidden>0</b></a>
     <a href="#/new" data-tab="new" class="tab-new"><span aria-hidden="true">＋</span>New order</a>
     <a href="#/customers" data-tab="customers"><span aria-hidden="true">👥</span>Customers</a>
+    <a href="#/website" data-tab="website"><span aria-hidden="true">🌐</span>Website</a>
   </nav>
 
   <!-- Small pop-up message ("Order saved") -->

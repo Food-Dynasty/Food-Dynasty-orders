@@ -147,6 +147,30 @@ const DemoStore = {
     Object.assign(order, changes);
     this._write("fd-app-orders", list);
     return this._withCustomer(order);
+  },
+
+  // --- Website flyers (weekly sales, holiday menus) ---
+  // Demo mode keeps the pictures only until the page is reloaded ("object URLs"),
+  // since this browser's storage is too small for real pictures.
+  async listFlyers() {
+    return this._read("fd-app-flyers").sort(function (a, b) { return b.created_at.localeCompare(a.created_at); });
+  },
+
+  async uploadFlyerFile(path, file) {
+    return { path: path, url: URL.createObjectURL(file) };
+  },
+
+  async createFlyer(flyer) {
+    const list = this._read("fd-app-flyers");
+    const nextNumber = list.reduce(function (max, f) { return Math.max(max, f.id); }, 0) + 1;
+    const row = Object.assign({ id: nextNumber, created_at: new Date().toISOString() }, flyer);
+    list.push(row);
+    this._write("fd-app-flyers", list);
+    return row;
+  },
+
+  async deleteFlyer(flyer) {
+    this._write("fd-app-flyers", this._read("fd-app-flyers").filter(function (f) { return f.id !== flyer.id; }));
   }
 };
 
@@ -256,6 +280,34 @@ const CloudStore = {
 
   async updateOrder(id, changes) {
     return unwrap(await this.client.from("orders").update(changes).eq("id", id).select(ORDER_COLUMNS).single());
+  },
+
+  // --- Website flyers (weekly sales, holiday menus) ---
+  // The files go in the "flyers" storage bucket; a row in the "flyers" table lists
+  // them. The public website reads that table (see supabase/website-flyers.sql).
+  async listFlyers() {
+    return unwrap(await this.client.from("flyers").select("*").order("created_at", { ascending: false }).limit(30));
+  },
+
+  // Uploads one file and returns its public address
+  async uploadFlyerFile(path, file) {
+    const bucket = this.client.storage.from("flyers");
+    unwrap(await bucket.upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false }));
+    return { path: path, url: bucket.getPublicUrl(path).data.publicUrl };
+  },
+
+  async createFlyer(flyer) {
+    return unwrap(await this.client.from("flyers").insert(flyer).select().single());
+  },
+
+  // Deletes the row AND its files, so old flyers don't pile up in storage
+  async deleteFlyer(flyer) {
+    const marker = "/object/public/flyers/";
+    const paths = [].concat(flyer.pages || [], flyer.pdf_url ? [flyer.pdf_url] : [])
+      .map(function (url) { const i = url.indexOf(marker); return i >= 0 ? decodeURIComponent(url.slice(i + marker.length)) : null; })
+      .filter(Boolean);
+    if (paths.length) unwrap(await this.client.storage.from("flyers").remove(paths));
+    unwrap(await this.client.from("flyers").delete().eq("id", flyer.id));
   }
 };
 
